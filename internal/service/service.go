@@ -5,18 +5,18 @@ import (
 	"fmt"
 )
 
-type UrlStorage interface {
+type URLStorage interface {
 	Save(ctx context.Context, id, url string) error
 	Exists(ctx context.Context, id string) (bool, error)
-	Url(ctx context.Context, id string) (string, error)
+	URL(ctx context.Context, id string) (string, error)
 }
 
 type Config struct {
-	IdSize int
+	IDSize int
 }
 
 type Dependencies struct {
-	Storage      UrlStorage
+	Storage      URLStorage
 	RandomString func(size int) string
 }
 
@@ -30,11 +30,11 @@ func New(cfg Config, deps Dependencies) *Service {
 
 type Service struct {
 	cfg          Config
-	storage      UrlStorage
+	storage      URLStorage
 	randomString func(size int) string
 }
 
-func (s *Service) MakeShortUrl(ctx context.Context, url string) (string, error) {
+func (s *Service) MakeShortURL(ctx context.Context, url string) (string, error) {
 
 	id := ""
 	for {
@@ -44,7 +44,7 @@ func (s *Service) MakeShortUrl(ctx context.Context, url string) (string, error) 
 		default:
 		}
 
-		id = s.randomString(s.cfg.IdSize)
+		id = s.randomString(s.cfg.IDSize)
 		exists, err := s.storage.Exists(ctx, id)
 		if err != nil {
 			return "", fmt.Errorf("failed to check url id: %w", err)
@@ -62,8 +62,8 @@ func (s *Service) MakeShortUrl(ctx context.Context, url string) (string, error) 
 	return id, nil
 }
 
-func (s *Service) Url(ctx context.Context, id string) (string, error) {
-	url, err := s.storage.Url(ctx, id)
+func (s *Service) URL(ctx context.Context, id string) (string, error) {
+	url, err := s.storage.URL(ctx, id)
 	if err != nil {
 		return "", fmt.Errorf("failed to get url: %w", err)
 	}

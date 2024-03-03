@@ -1,4 +1,4 @@
-package inmem_storage
+package inmemstorage
 
 import (
 	"context"
@@ -38,7 +38,7 @@ func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 	return ok, nil
 }
 
-func (s *Storage) Url(ctx context.Context, id string) (string, error) {
+func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 

@@ -1,8 +1,9 @@
-package http_handlers
+package httphandlers
 
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -11,8 +12,8 @@ import (
 )
 
 type Service interface {
-	MakeShortUrl(ctx context.Context, url string) (string, error)
-	Url(ctx context.Context, id string) (string, error)
+	MakeShortURL(ctx context.Context, url string) (string, error)
+	URL(ctx context.Context, id string) (string, error)
 }
 
 type Dependencies struct {
@@ -36,13 +37,13 @@ func (h *Handlers) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	switch {
-	case match(r.URL.Path, "^/$"):
-		h.ShortUrl(w, r)
-	case match(r.URL.Path, "^/\\w+$"):
+	case match(r.URL.Path, `^/$`):
+		h.ShortURL(w, r)
+	case match(r.URL.Path, `^/\w+$`):
 		h.Redirect(w, r)
 	default:
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(http.StatusText(http.StatusNotFound)))
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(http.StatusText(http.StatusBadRequest)))
 	}
 }
 
@@ -51,7 +52,7 @@ func match(path string, pattern string) bool {
 	return regExp.MatchString(path)
 }
 
-func (h *Handlers) ShortUrl(w http.ResponseWriter, req *http.Request) {
+func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	if http.MethodPost != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
@@ -64,14 +65,14 @@ func (h *Handlers) ShortUrl(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id, err := h.service.MakeShortUrl(req.Context(), string(b))
+	id, err := h.service.MakeShortURL(req.Context(), string(b))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(req.Host + "/" + id))
+	w.Write([]byte(fmt.Sprintf("http://%s/%s", req.Host, id)))
 }
 
 func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
@@ -81,14 +82,14 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	matches := regexp.MustCompile("/(\\w+)").FindStringSubmatch(req.URL.Path)
+	matches := regexp.MustCompile(`/(\w+)`).FindStringSubmatch(req.URL.Path)
 	if len(matches) < 1 {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	id := matches[1]
-	url, err := h.service.Url(req.Context(), id)
+	url, err := h.service.URL(req.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, transport.ErrNotFound):
