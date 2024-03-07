@@ -44,7 +44,10 @@ func (h *Handlers) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.Redirect(w, r)
 	default:
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		_, err := w.Write([]byte(http.StatusText(http.StatusBadRequest)))
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
 	}
 }
 
@@ -56,7 +59,10 @@ func match(path string, pattern string) bool {
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	if http.MethodPost != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
+		_, err := w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -73,13 +79,19 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte(fmt.Sprintf("http://%s/%s", req.Host, id)))
+	_, err = w.Write([]byte(fmt.Sprintf("http://%s/%s", req.Host, id)))
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	if http.MethodGet != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
+		_, err := w.Write([]byte(http.StatusText(http.StatusMethodNotAllowed)))
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		}
 		return
 	}
 
@@ -95,7 +107,10 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 		switch {
 		case errors.Is(err, transport.ErrNotFound):
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			_, err = w.Write([]byte(http.StatusText(http.StatusNotFound)))
+			if err != nil {
+				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			}
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}

@@ -88,10 +88,10 @@ func TestStorage_Save(t *testing.T) {
 func TestStorage_URL(t *testing.T) {
 
 	id1, id2 := random.NewString(6), random.NewString(6)
-	wantedUrl := "https://ya.ru"
+	wantedURL := "https://ya.ru"
 
 	mem := map[string]string{
-		id1: wantedUrl,
+		id1: wantedURL,
 	}
 
 	tests := []struct {
@@ -104,7 +104,7 @@ func TestStorage_URL(t *testing.T) {
 		{
 			name:    "must return url for id1",
 			id:      id1,
-			url:     wantedUrl,
+			url:     wantedURL,
 			wantErr: false,
 		},
 		{
