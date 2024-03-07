@@ -11,6 +11,7 @@ import (
 	"github.com/lks-go/url-shortener/internal/transport"
 )
 
+//go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
 	MakeShortURL(ctx context.Context, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)

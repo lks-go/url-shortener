@@ -12,8 +12,10 @@ import (
 
 func main() {
 
+	memStore := make(map[string]string)
+
 	s := service.New(service.Config{IDSize: 8}, service.Dependencies{
-		Storage:      inmemstorage.New(),
+		Storage:      inmemstorage.MustNew(memStore),
 		RandomString: random.NewString,
 	})
 

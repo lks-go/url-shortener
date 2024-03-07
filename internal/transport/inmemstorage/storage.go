@@ -2,16 +2,31 @@ package inmemstorage
 
 import (
 	"context"
+	"errors"
 	"sync"
 
 	"github.com/lks-go/url-shortener/internal/transport"
 )
 
-func New() *Storage {
-	return &Storage{
-		data: make(map[string]string),
-		mu:   sync.RWMutex{},
+func MustNew(memStorage map[string]string) *Storage {
+	s, err := New(memStorage)
+	if err != nil {
+		panic(err)
 	}
+
+	return s
+}
+
+func New(memStorage map[string]string) (*Storage, error) {
+
+	if memStorage == nil {
+		return nil, errors.New("memory storage must not be nil")
+	}
+
+	return &Storage{
+		data: memStorage,
+		mu:   sync.RWMutex{},
+	}, nil
 }
 
 type Storage struct {
