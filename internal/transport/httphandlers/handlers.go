@@ -29,33 +29,6 @@ type Handlers struct {
 	service Service
 }
 
-func (h *Handlers) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	defer func() {
-		if rec := recover(); rec != nil {
-			http.Error(w, "panic", 500)
-		}
-	}()
-
-	switch {
-	case match(r.URL.Path, `^/$`):
-		h.ShortURL(w, r)
-	case match(r.URL.Path, `^/\w+$`):
-		h.Redirect(w, r)
-	default:
-		w.WriteHeader(http.StatusBadRequest)
-		_, err := w.Write([]byte(http.StatusText(http.StatusBadRequest)))
-		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		}
-	}
-}
-
-func match(path string, pattern string) bool {
-	regExp := regexp.MustCompile(pattern)
-	return regExp.MatchString(path)
-}
-
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	if http.MethodPost != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
