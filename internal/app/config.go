@@ -13,15 +13,15 @@ func NewConfig() Config {
 	cfg := Config{}
 
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
-	flag.StringVar(&cfg.BasePath, "b", "/", "Base path for short URL")
+	flag.StringVar(&cfg.RedirectBasePath, "b", "http://localhost:8080", "Base path for short URL")
 	flag.Parse()
 
 	return cfg
 }
 
 type Config struct {
-	NetAddress NetAddress
-	BasePath   string
+	NetAddress       NetAddress
+	RedirectBasePath string
 }
 
 type NetAddress struct {

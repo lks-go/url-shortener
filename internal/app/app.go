@@ -25,18 +25,15 @@ func (a *App) Run() error {
 		RandomString: random.NewString,
 	})
 
-	h := httphandlers.New(a.Config.BasePath, httphandlers.Dependencies{Service: s})
+	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s})
 
 	r := chi.NewRouter()
 	r.Use(
 		middleware.DefaultLogger,
 		middleware.Recoverer,
 	)
-
-	r.Route(a.Config.BasePath, func(r chi.Router) {
-		r.Get("/{id}", h.Redirect)
-	})
-
+	
+	r.Get("/{id}", h.Redirect)
 	r.Post("/", h.ShortURL)
 
 	return http.ListenAndServe(a.Config.NetAddress.String(), r)

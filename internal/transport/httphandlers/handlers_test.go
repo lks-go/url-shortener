@@ -108,14 +108,14 @@ func TestHandlers_Redirect(t *testing.T) {
 
 func TestHandlers_ShortURL(t *testing.T) {
 
-	host := "test"
+	basePath := "http://localhost:8080"
 	id := "any-rand-id"
 	serviceMock := mocks.NewService(t)
 
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New("/", deps)
+	h := httphandlers.New(basePath, deps)
 
 	tests := []struct {
 		name         string
@@ -132,7 +132,7 @@ func TestHandlers_ShortURL(t *testing.T) {
 			target:       "/",
 			body:         bytes.NewReader([]byte("https://ya.ru")),
 			wantHTTPCode: http.StatusCreated,
-			wantResp:     fmt.Sprintf("http://%s/%s", host, id),
+			wantResp:     fmt.Sprintf("%s/%s", basePath, id),
 			callMocks: func() {
 				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return(id, nil).Once()
 			},
@@ -165,7 +165,6 @@ func TestHandlers_ShortURL(t *testing.T) {
 
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tt.method, tt.target, tt.body)
-			r.Host = host
 
 			h.ShortURL(w, r)
 

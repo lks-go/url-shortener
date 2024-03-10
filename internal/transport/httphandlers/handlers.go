@@ -23,12 +23,12 @@ type Dependencies struct {
 }
 
 func New(basePath string, deps Dependencies) *Handlers {
-	return &Handlers{basePath: strings.TrimRight(basePath, "/"), service: deps.Service}
+	return &Handlers{redirectBasePath: strings.TrimRight(basePath, "/"), service: deps.Service}
 }
 
 type Handlers struct {
-	basePath string
-	service  Service
+	redirectBasePath string
+	service          Service
 }
 
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
@@ -54,7 +54,7 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write([]byte(fmt.Sprintf("http://%s%s/%s", req.Host, h.basePath, id)))
+	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.redirectBasePath, id)))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
@@ -70,7 +70,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	matches := regexp.MustCompile(h.basePath + `/(\w+)`).FindStringSubmatch(req.URL.Path)
+	matches := regexp.MustCompile(`/(\w+)`).FindStringSubmatch(req.URL.Path)
 	if len(matches) < 1 {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
