@@ -9,9 +9,12 @@ import (
 func main() {
 
 	a := app.App{
-		Addr: ":8080",
+		Config: app.NewConfig(),
 	}
 
+	log.Println("Starting server")
+	log.Printf("Listen and serve on %s", a.Config.NetAddress.String())
+	log.Printf("Base path for short URL '%s'", a.Config.BasePath)
 	if err := a.Run(); err != nil {
 		log.Fatal(err)
 	}

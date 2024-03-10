@@ -23,7 +23,7 @@ func TestHandlers_Redirect(t *testing.T) {
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New(deps)
+	h := httphandlers.New("/", deps)
 
 	type header struct {
 		key, value string
@@ -115,7 +115,7 @@ func TestHandlers_ShortURL(t *testing.T) {
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New(deps)
+	h := httphandlers.New("/", deps)
 
 	tests := []struct {
 		name         string

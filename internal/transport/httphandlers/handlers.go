@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/lks-go/url-shortener/internal/transport"
 )
@@ -21,12 +22,13 @@ type Dependencies struct {
 	Service
 }
 
-func New(deps Dependencies) *Handlers {
-	return &Handlers{service: deps.Service}
+func New(basePath string, deps Dependencies) *Handlers {
+	return &Handlers{basePath: strings.TrimRight(basePath, "/"), service: deps.Service}
 }
 
 type Handlers struct {
-	service Service
+	basePath string
+	service  Service
 }
 
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
@@ -52,7 +54,7 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write([]byte(fmt.Sprintf("http://%s/%s", req.Host, id)))
+	_, err = w.Write([]byte(fmt.Sprintf("http://%s%s/%s", req.Host, h.basePath, id)))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
@@ -68,7 +70,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	matches := regexp.MustCompile(`/(\w+)`).FindStringSubmatch(req.URL.Path)
+	matches := regexp.MustCompile(h.basePath + `/(\w+)`).FindStringSubmatch(req.URL.Path)
 	if len(matches) < 1 {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
