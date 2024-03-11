@@ -4,16 +4,32 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
+)
+
+const (
+	serverAddressDefVal = ":8080"
+	baseURLDefVal       = "http://localhost:8080/"
 )
 
 func NewConfig() Config {
 
 	cfg := Config{}
 
-	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
-	flag.StringVar(&cfg.RedirectBasePath, "b", "http://localhost:8080", "Base path for short URL")
+	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
+		cfg.RedirectBasePath = baseURL
+	} else {
+		flag.StringVar(&cfg.RedirectBasePath, "b", baseURLDefVal, "Base path for short URL")
+	}
+
+	if srvAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
+		cfg.NetAddress.Set(srvAddr)
+	} else {
+		flag.Var(&cfg.NetAddress, "a", "Net address host:port")
+	}
+
 	flag.Parse()
 
 	return cfg
@@ -32,7 +48,7 @@ type NetAddress struct {
 func (a *NetAddress) String() string {
 
 	if a.Port == 0 {
-		return ":8080"
+		return serverAddressDefVal
 	}
 
 	return a.Host + ":" + strconv.Itoa(a.Port)
