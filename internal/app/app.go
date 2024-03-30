@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
+	chiMw "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
 	"github.com/lks-go/url-shortener/internal/transport/inmemstorage"
+	"github.com/lks-go/url-shortener/internal/transport/middleware"
 )
 
 type App struct {
@@ -29,10 +30,10 @@ func (a *App) Run() error {
 
 	r := chi.NewRouter()
 	r.Use(
-		middleware.DefaultLogger,
-		middleware.Recoverer,
+		middleware.WithRequestLogger,
+		chiMw.Recoverer,
 	)
-	
+
 	r.Get("/{id}", h.Redirect)
 	r.Post("/", h.ShortURL)
 
