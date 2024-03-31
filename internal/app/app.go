@@ -32,6 +32,7 @@ func (a *App) Run() error {
 	r.Use(
 		middleware.WithRequestLogger,
 		chiMw.Recoverer,
+		middleware.WithCompressor,
 	)
 
 	r.Get("/{id}", h.Redirect)
