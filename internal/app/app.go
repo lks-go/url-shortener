@@ -36,6 +36,7 @@ func (a *App) Run() error {
 
 	r.Get("/{id}", h.Redirect)
 	r.Post("/", h.ShortURL)
+	r.Post("/api/shorten", h.ShortenURL)
 
 	return http.ListenAndServe(a.Config.NetAddress.String(), r)
 }

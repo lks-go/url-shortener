@@ -173,3 +173,71 @@ func TestHandlers_ShortURL(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlers_ShortenURL(t *testing.T) {
+
+	basePath := "http://localhost:8080"
+	id := "any-rand-id"
+	serviceMock := mocks.NewService(t)
+
+	deps := httphandlers.Dependencies{
+		Service: serviceMock,
+	}
+	h := httphandlers.New(basePath, deps)
+
+	tests := []struct {
+		name         string
+		method       string
+		target       string
+		body         io.Reader
+		wantHTTPCode int
+		wantResp     string
+		callMocks    func()
+	}{
+		{
+			name:         "successful request",
+			method:       http.MethodPost,
+			target:       "/api/shorten",
+			body:         bytes.NewReader([]byte(`{"url": "https://ya.ru"}`)),
+			wantHTTPCode: http.StatusCreated,
+			wantResp:     fmt.Sprintf("{\"result\":\"%s/%s\"}\n", basePath, id),
+			callMocks: func() {
+				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return(id, nil).Once()
+			},
+		},
+		{
+			name:         "method not allowed",
+			method:       http.MethodGet,
+			target:       "/api/shorten",
+			body:         bytes.NewReader([]byte(`{"url": "https://ya.ru"}`)),
+			wantHTTPCode: http.StatusMethodNotAllowed,
+			wantResp:     http.StatusText(http.StatusMethodNotAllowed),
+			callMocks:    func() {},
+		},
+		{
+			name:         "internal server error",
+			method:       http.MethodPost,
+			target:       "/api/shorten",
+			body:         bytes.NewReader([]byte(`{"url": "https://ya.ru"}`)),
+			wantHTTPCode: http.StatusInternalServerError,
+			wantResp:     http.StatusText(http.StatusInternalServerError) + "\n",
+			callMocks: func() {
+				err := errors.New("any error")
+				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return("", err).Once()
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.callMocks()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(tt.method, tt.target, tt.body)
+
+			h.ShortenURL(w, r)
+
+			assert.Equal(t, tt.wantResp, w.Body.String())
+			assert.Equal(t, tt.wantHTTPCode, w.Code)
+		})
+	}
+}
