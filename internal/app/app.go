@@ -9,7 +9,7 @@ import (
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
-	"github.com/lks-go/url-shortener/internal/transport/inmemstorage"
+	"github.com/lks-go/url-shortener/internal/transport/infilestorage"
 	"github.com/lks-go/url-shortener/internal/transport/middleware"
 )
 
@@ -19,10 +19,8 @@ type App struct {
 
 func (a *App) Run() error {
 
-	memStore := make(map[string]string)
-
 	s := service.New(service.Config{IDSize: 8}, service.Dependencies{
-		Storage:      inmemstorage.MustNew(memStore),
+		Storage:      infilestorage.New(a.Config.FileStoragePath),
 		RandomString: random.NewString,
 	})
 

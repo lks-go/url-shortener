@@ -12,6 +12,7 @@ import (
 const (
 	DefaultServerAddress = ":8080"
 	DefaultBaseURL       = "http://localhost:8080"
+	DefaultFSPath        = "/tmp/short-url-db.json"
 )
 
 func NewConfig() Config {
@@ -19,6 +20,7 @@ func NewConfig() Config {
 	cfg := Config{}
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
 	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
+	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
@@ -29,12 +31,17 @@ func NewConfig() Config {
 		cfg.NetAddress.Set(srvAddr)
 	}
 
+	if fsPath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
+		cfg.FileStoragePath = fsPath
+	}
+
 	return cfg
 }
 
 type Config struct {
 	NetAddress       NetAddress
 	RedirectBasePath string
+	FileStoragePath  string
 }
 
 type NetAddress struct {

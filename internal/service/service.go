@@ -55,7 +55,7 @@ func (s *Service) MakeShortURL(ctx context.Context, url string) (string, error) 
 		}
 	}
 
-	if err := s.storage.Save(ctx, url, id); err != nil {
+	if err := s.storage.Save(ctx, id, url); err != nil {
 		return "", fmt.Errorf("filed to save url: %w", err)
 	}
 

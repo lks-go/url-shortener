@@ -12,6 +12,8 @@ func WithCompressor(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ow := w
 
+		// TODO don't compress when error occurs
+
 		acceptEncoding := r.Header.Get("Accept-Encoding")
 		supportsGzip := strings.Contains(acceptEncoding, "gzip")
 		if supportsGzip {
@@ -28,7 +30,7 @@ func WithCompressor(next http.Handler) http.Handler {
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
-			
+
 			r.Body = cr
 			defer cr.Close()
 		}

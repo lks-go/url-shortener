@@ -51,6 +51,7 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 
 	id, err := h.service.MakeShortURL(req.Context(), string(b))
 	if err != nil {
+		fmt.Println(err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
