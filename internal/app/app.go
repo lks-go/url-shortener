@@ -64,9 +64,9 @@ func setupDB(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to open database connection: %w", err)
 	}
 
-	if err := pool.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping database after connect: %w", err)
-	}
+	//if err := pool.Ping(); err != nil {
+	//	return nil, fmt.Errorf("failed to ping database after connect: %w", err)
+	//}
 
 	return pool, nil
 }
