@@ -21,6 +21,7 @@ func NewConfig() Config {
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
 	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
+	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
@@ -35,6 +36,10 @@ func NewConfig() Config {
 		cfg.FileStoragePath = fsPath
 	}
 
+	if dbConnString, ok := os.LookupEnv("DATABASE_DSN"); ok {
+		cfg.DatabaseDSN = dbConnString
+	}
+
 	return cfg
 }
 
@@ -42,6 +47,7 @@ type Config struct {
 	NetAddress       NetAddress
 	RedirectBasePath string
 	FileStoragePath  string
+	DatabaseDSN      string
 }
 
 type NetAddress struct {
