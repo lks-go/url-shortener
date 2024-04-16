@@ -130,14 +130,14 @@ func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	type respUrl struct {
+	type respURL struct {
 		CorrelationID string `json:"correlation_id"`
 		ShortURL      string `json:"short_url"`
 	}
 
-	resp := make([]respUrl, 0, len(shortURLList))
+	resp := make([]respURL, 0, len(shortURLList))
 	for _, u := range shortURLList {
-		resp = append(resp, respUrl{
+		resp = append(resp, respURL{
 			CorrelationID: u.СorrelationID,
 			ShortURL:      fmt.Sprintf("%s/%s", h.redirectBasePath, u.Code),
 		})
