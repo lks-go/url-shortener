@@ -11,11 +11,15 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/sirupsen/logrus"
+
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
+	MakeBatchShortURL(ctx context.Context, urls []service.URL) ([]service.URL, error)
 	MakeShortURL(ctx context.Context, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)
 }
@@ -97,6 +101,60 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Set("Location", url)
 	w.WriteHeader(http.StatusTemporaryRedirect)
+}
+
+func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
+	type url struct {
+		CorrelationID string `json:"correlation_id"`
+		OriginalURL   string `json:"original_url"`
+	}
+
+	body := make([]url, 0)
+	if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	urlList := make([]service.URL, 0, len(body))
+	for _, u := range body {
+		urlList = append(urlList, service.URL{
+			СorrelationID: u.CorrelationID,
+			OriginalURL:   u.OriginalURL,
+		})
+	}
+
+	shortURLList, err := h.service.MakeBatchShortURL(req.Context(), urlList)
+	if err != nil {
+		logrus.Errorf("failed to make batch short urls: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	type respUrl struct {
+		CorrelationID string `json:"correlation_id"`
+		ShortURL      string `json:"short_url"`
+	}
+
+	resp := make([]respUrl, 0, len(shortURLList))
+	for _, u := range shortURLList {
+		resp = append(resp, respUrl{
+			CorrelationID: u.СorrelationID,
+			ShortURL:      fmt.Sprintf("%s/%s", h.redirectBasePath, u.Code),
+		})
+	}
+
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(resp); err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }
 
 func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {

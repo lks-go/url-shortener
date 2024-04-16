@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport"
 )
 
@@ -39,6 +40,17 @@ func (s *Storage) Save(ctx context.Context, url, id string) error {
 	defer s.mu.Unlock()
 
 	s.data[id] = url
+
+	return nil
+}
+
+func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, u := range url {
+		s.data[u.Code] = u.OriginalURL
+	}
 
 	return nil
 }

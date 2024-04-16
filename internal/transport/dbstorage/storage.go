@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/lks-go/url-shortener/internal/service"
 )
 
 func New(db *sql.DB) *Storage {
@@ -14,6 +16,33 @@ func New(db *sql.DB) *Storage {
 
 type Storage struct {
 	db *sql.DB
+}
+
+func (s *Storage) SaveBatch(ctx context.Context, urls []service.URL) error {
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.Prepare(`INSERT INTO url (code, url) VALUES($1, $2)`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare statement: %w", err)
+	}
+
+	for _, u := range urls {
+		_, err = stmt.ExecContext(ctx, u.Code, u.OriginalURL)
+		if err != nil {
+			return fmt.Errorf("failed to exec query: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 func (s *Storage) Save(ctx context.Context, code, url string) error {

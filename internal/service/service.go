@@ -5,8 +5,15 @@ import (
 	"fmt"
 )
 
+type URL struct {
+	СorrelationID string
+	OriginalURL   string
+	Code          string
+}
+
 type URLStorage interface {
-	Save(ctx context.Context, id, url string) error
+	Save(ctx context.Context, code, url string) error
+	SaveBatch(ctx context.Context, url []URL) error
 	Exists(ctx context.Context, id string) (bool, error)
 	URL(ctx context.Context, id string) (string, error)
 }
@@ -35,31 +42,16 @@ type Service struct {
 }
 
 func (s *Service) MakeShortURL(ctx context.Context, url string) (string, error) {
-
-	id := ""
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		default:
-		}
-
-		id = s.randomString(s.cfg.IDSize)
-		exists, err := s.storage.Exists(ctx, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to check url id: %w", err)
-		}
-
-		if !exists {
-			break
-		}
+	code, err := s.generateShort(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to assign short: %w", err)
 	}
 
-	if err := s.storage.Save(ctx, id, url); err != nil {
+	if err := s.storage.Save(ctx, code, url); err != nil {
 		return "", fmt.Errorf("filed to save url: %w", err)
 	}
 
-	return id, nil
+	return code, nil
 }
 
 func (s *Service) URL(ctx context.Context, id string) (string, error) {
@@ -69,4 +61,46 @@ func (s *Service) URL(ctx context.Context, id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *Service) MakeBatchShortURL(ctx context.Context, urls []URL) ([]URL, error) {
+
+	for i := range urls {
+		code, err := s.generateShort(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign short: %w", err)
+		}
+
+		urls[i].Code = code
+	}
+
+	if err := s.storage.SaveBatch(ctx, urls); err != nil {
+		return nil, fmt.Errorf("failed to save batch of urls: %w", err)
+	}
+
+	return urls, nil
+}
+
+func (s *Service) generateShort(ctx context.Context) (string, error) {
+	short := ""
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+
+		short = s.randomString(s.cfg.IDSize)
+		exists, err := s.storage.Exists(ctx, short)
+		if err != nil {
+			return "", fmt.Errorf("failed to check url id: %w", err)
+		}
+
+		if !exists {
+			break
+		}
+	}
+
+	return short, nil
 }
