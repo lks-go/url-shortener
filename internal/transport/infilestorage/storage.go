@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport"
 	"github.com/lks-go/url-shortener/pkg/fs"
 )
@@ -69,6 +70,42 @@ func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 	for _, row := range l {
 		if row.ShortURL == id {
 			return row.OriginalURL, nil
+		}
+	}
+
+	return "", transport.ErrNotFound
+}
+
+func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
+	l, err := s.urlList()
+	if err != nil {
+		return fmt.Errorf("failed to get url list: %w", err)
+	}
+
+	for _, u := range url {
+		r := fs.Record{
+			UUID:        strconv.Itoa(len(l) + 1),
+			ShortURL:    u.Code,
+			OriginalURL: u.OriginalURL,
+		}
+
+		if err := s.append(&r); err != nil {
+			return fmt.Errorf("failed to append row")
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	l, err := s.urlList()
+	if err != nil {
+		return "", fmt.Errorf("failed to get url list: %w", err)
+	}
+
+	for _, row := range l {
+		if row.OriginalURL == url {
+			return row.ShortURL, nil
 		}
 	}
 
