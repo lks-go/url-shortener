@@ -97,6 +97,21 @@ func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
 	return nil
 }
 
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	l, err := s.urlList()
+	if err != nil {
+		return "", fmt.Errorf("failed to get url list: %w", err)
+	}
+
+	for _, row := range l {
+		if row.OriginalURL == url {
+			return row.ShortURL, nil
+		}
+	}
+
+	return "", transport.ErrNotFound
+}
+
 func (s *Storage) urlList() ([]fs.Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

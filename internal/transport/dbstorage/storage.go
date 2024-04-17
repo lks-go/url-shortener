@@ -5,7 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/lks-go/url-shortener/internal/service"
+	"github.com/lks-go/url-shortener/internal/transport"
 )
 
 func New(db *sql.DB) *Storage {
@@ -26,7 +30,7 @@ func (s *Storage) SaveBatch(ctx context.Context, urls []service.URL) error {
 	}
 	defer tx.Rollback()
 
-	stmt, err := tx.Prepare(`INSERT INTO url (code, url) VALUES($1, $2)`)
+	stmt, err := tx.Prepare(`INSERT INTO shorten (code, url) VALUES($1, $2)`)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
@@ -46,10 +50,16 @@ func (s *Storage) SaveBatch(ctx context.Context, urls []service.URL) error {
 }
 
 func (s *Storage) Save(ctx context.Context, code, url string) error {
-	q := `INSERT INTO url (code, url) VALUES($1, $2)`
+	q := `INSERT INTO shorten (code, url) VALUES($1, $2)`
 
 	_, err := s.db.ExecContext(ctx, q, code, url)
 	if err != nil {
+		if err, ok := err.(*pgconn.PgError); ok {
+			if err.Code == pgerrcode.UniqueViolation {
+				return service.ErrURLAlreadyExists
+			}
+		}
+
 		return fmt.Errorf("failed to exec query: %w", err)
 	}
 
@@ -57,7 +67,7 @@ func (s *Storage) Save(ctx context.Context, code, url string) error {
 }
 
 func (s *Storage) Exists(ctx context.Context, code string) (bool, error) {
-	q := "SELECT url FROM url WHERE code = $1"
+	q := "SELECT url FROM shorten WHERE code = $1"
 
 	row := s.db.QueryRowContext(ctx, q, code)
 	url := ""
@@ -76,11 +86,14 @@ func (s *Storage) Exists(ctx context.Context, code string) (bool, error) {
 }
 
 func (s *Storage) URL(ctx context.Context, code string) (string, error) {
-	q := "SELECT url FROM url WHERE code = $1"
+	q := "SELECT url FROM shorten WHERE code = $1"
 
 	url := ""
 	row := s.db.QueryRowContext(ctx, q, code)
 	if err := row.Scan(&url); err != nil {
+		if err == sql.ErrNoRows {
+			return "", transport.ErrNotFound
+		}
 		return "", fmt.Errorf("failed to scan row: %w", err)
 	}
 
@@ -89,4 +102,20 @@ func (s *Storage) URL(ctx context.Context, code string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	q := "SELECT code FROM shorten WHERE url = $1"
+
+	code := ""
+	row := s.db.QueryRowContext(ctx, q, url)
+	if err := row.Scan(&code); err != nil {
+		return "", fmt.Errorf("failed to scan row: %w", err)
+	}
+
+	if err := row.Err(); err != nil {
+		return "", fmt.Errorf("row error: %w", err)
+	}
+
+	return code, nil
 }

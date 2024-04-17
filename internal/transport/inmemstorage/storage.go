@@ -76,3 +76,16 @@ func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 
 	return url, nil
 }
+
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for code, u := range s.data {
+		if u == url {
+			return code, nil
+		}
+	}
+
+	return "", transport.ErrNotFound
+}

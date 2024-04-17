@@ -54,13 +54,17 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	}
 
 	id, err := h.service.MakeShortURL(req.Context(), string(b))
-	if err != nil {
-		fmt.Println(err)
+	if err != nil && !errors.Is(err, service.ErrURLAlreadyExists) {
+		logrus.Errorf("failed to make short url: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
+	if errors.Is(err, service.ErrURLAlreadyExists) {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
 	_, err = w.Write([]byte(fmt.Sprintf("%s/%s", h.redirectBasePath, id)))
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -83,8 +87,8 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id := matches[1]
-	url, err := h.service.URL(req.Context(), id)
+	code := matches[1]
+	url, err := h.service.URL(req.Context(), code)
 	if err != nil {
 		switch {
 		case errors.Is(err, transport.ErrNotFound):
@@ -94,6 +98,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
 		default:
+			logrus.Errorf("failed to get url by code [%s]: %s", code, err)
 			w.WriteHeader(http.StatusInternalServerError)
 		}
 		return
@@ -176,27 +181,51 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	id, err := h.service.MakeShortURL(req.Context(), body.URL)
+	isConflict := false
+
+	code, err := h.service.MakeShortURL(req.Context(), body.URL)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		switch {
+		case errors.Is(err, service.ErrURLAlreadyExists):
+			logrus.Warnf("url [%s] already exists: %s", body.URL, err)
+			isConflict = true
+		default:
+			logrus.Errorf("failed to make short url: %s", err)
+			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			return
+		}
 	}
 
-	buf := new(bytes.Buffer)
-	resp := struct {
-		Result string `json:"result"`
-	}{
-		Result: fmt.Sprintf("%s/%s", h.redirectBasePath, id),
-	}
-	if err := json.NewEncoder(buf).Encode(resp); err != nil {
+	resp, err := h.shortenURLResponse(code)
+	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(buf.Bytes())
+	if isConflict {
+		w.WriteHeader(http.StatusConflict)
+	} else {
+		w.WriteHeader(http.StatusCreated)
+	}
+
+	_, err = w.Write(resp)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
+}
+
+func (h *Handlers) shortenURLResponse(code string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	resp := struct {
+		Result string `json:"result"`
+	}{
+		Result: fmt.Sprintf("%s/%s", h.redirectBasePath, code),
+	}
+
+	if err := json.NewEncoder(buf).Encode(resp); err != nil {
+		return nil, fmt.Errorf("failed to encode response: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }

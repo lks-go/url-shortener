@@ -2,7 +2,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
+)
+
+var (
+	ErrURLAlreadyExists = errors.New("URL already exists")
 )
 
 type URL struct {
@@ -14,8 +19,9 @@ type URL struct {
 type URLStorage interface {
 	Save(ctx context.Context, code, url string) error
 	SaveBatch(ctx context.Context, url []URL) error
-	Exists(ctx context.Context, id string) (bool, error)
+	Exists(ctx context.Context, code string) (bool, error)
 	URL(ctx context.Context, id string) (string, error)
+	CodeByURL(ctx context.Context, url string) (string, error)
 }
 
 type Config struct {
@@ -47,8 +53,18 @@ func (s *Service) MakeShortURL(ctx context.Context, url string) (string, error) 
 		return "", fmt.Errorf("failed to assign short: %w", err)
 	}
 
-	if err := s.storage.Save(ctx, code, url); err != nil {
+	err = s.storage.Save(ctx, code, url)
+	if err != nil && !errors.Is(err, ErrURLAlreadyExists) {
 		return "", fmt.Errorf("filed to save url: %w", err)
+	}
+
+	if errors.Is(err, ErrURLAlreadyExists) {
+		code, err = s.storage.CodeByURL(ctx, url)
+		if err != nil {
+			return "", fmt.Errorf("failed to get ID by URL: %w", err)
+		}
+
+		return code, ErrURLAlreadyExists
 	}
 
 	return code, nil
