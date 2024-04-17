@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport"
 )
 
@@ -43,6 +44,17 @@ func (s *Storage) Save(ctx context.Context, url, id string) error {
 	return nil
 }
 
+func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, u := range url {
+		s.data[u.Code] = u.OriginalURL
+	}
+
+	return nil
+}
+
 func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 
 	s.mu.RLock()
@@ -63,4 +75,17 @@ func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for code, u := range s.data {
+		if u == url {
+			return code, nil
+		}
+	}
+
+	return "", transport.ErrNotFound
 }
