@@ -44,10 +44,14 @@ func (a *App) Run() error {
 
 		storage = dbstorage.New(pool)
 	case a.Config.FileStoragePath != "":
-		storage = infilestorage.New(a.Config.FileStoragePath)
+		storage = infilestorage.New(infilestorage.Config{
+			UrlsFilename:  a.Config.FileStoragePath,
+			UsersURLCodes: a.Config.FileStoragePath,
+		})
 	default:
-		m := make(map[string]string)
-		storage = inmemstorage.MustNew(m)
+		memStoreShortenURLs := make(map[string]string)
+		memUsersURLsCodes := make(map[string][]string)
+		storage = inmemstorage.MustNew(memStoreShortenURLs, memUsersURLsCodes)
 	}
 
 	s := service.New(service.Config{IDSize: 8}, service.Dependencies{
@@ -61,6 +65,7 @@ func (a *App) Run() error {
 	r.Use(
 		middleware.WithRequestLogger,
 		chiMw.Recoverer,
+		middleware.WithAuth,
 		middleware.WithCompressor,
 	)
 

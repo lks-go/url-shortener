@@ -14,7 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/lks-go/url-shortener/internal/service"
-	"github.com/lks-go/url-shortener/internal/transport"
 )
 
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
@@ -22,6 +21,7 @@ type Service interface {
 	MakeBatchShortURL(ctx context.Context, urls []service.URL) ([]service.URL, error)
 	MakeShortURL(ctx context.Context, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)
+	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
 }
 
 type Dependencies struct {
@@ -91,7 +91,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	url, err := h.service.URL(req.Context(), code)
 	if err != nil {
 		switch {
-		case errors.Is(err, transport.ErrNotFound):
+		case errors.Is(err, service.ErrNotFound):
 			w.WriteHeader(http.StatusNotFound)
 			_, err = w.Write([]byte(http.StatusText(http.StatusNotFound)))
 			if err != nil {
@@ -211,6 +211,48 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 
 	_, err = w.Write(resp)
 	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
+}
+
+func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
+	userID, ok := req.Header["user_id"]
+	if !ok || len(userID) == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	urls, err := h.service.UsersURLs(req.Context(), userID[0])
+	if err != nil {
+		logrus.Errorf("failed to get users urls: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	type respURL struct {
+		ShortURL    string `json:"short_url"`
+		OriginalURL string `json:"original_url"`
+	}
+
+	resp := make([]respURL, 0, len(urls))
+	for _, u := range urls {
+		resp = append(resp, respURL{
+			ShortURL:    fmt.Sprintf("%s/%s", h.redirectBasePath, u.Code),
+			OriginalURL: u.OriginalURL,
+		})
+	}
+
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(resp); err != nil {
+		logrus.Errorf("failed encode response to json: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		logrus.Errorf("failed write response: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 	}
 }

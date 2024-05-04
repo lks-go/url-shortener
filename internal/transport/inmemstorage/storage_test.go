@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lks-go/url-shortener/internal/lib/random"
-	"github.com/lks-go/url-shortener/internal/transport"
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/inmemstorage"
 )
 
@@ -19,6 +19,7 @@ func TestStorage_Exists(t *testing.T) {
 	mem := map[string]string{
 		id1: "https://ya.ru",
 	}
+	mem2 := make(map[string][]string)
 
 	tests := []struct {
 		name    string
@@ -41,7 +42,7 @@ func TestStorage_Exists(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := inmemstorage.MustNew(mem)
+			s := inmemstorage.MustNew(mem, mem2)
 			got, err := s.Exists(context.Background(), tt.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Exists() error = %v, wantErr %v", err, tt.wantErr)
@@ -72,7 +73,8 @@ func TestStorage_Save(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mem := map[string]string{}
-			s := inmemstorage.MustNew(mem)
+			mem2 := make(map[string][]string)
+			s := inmemstorage.MustNew(mem, mem2)
 
 			if err := s.Save(context.Background(), tt.url, tt.id); (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
@@ -93,6 +95,7 @@ func TestStorage_URL(t *testing.T) {
 	mem := map[string]string{
 		id1: wantedURL,
 	}
+	mem2 := make(map[string][]string)
 
 	tests := []struct {
 		name    string
@@ -112,15 +115,15 @@ func TestStorage_URL(t *testing.T) {
 			id:      id2,
 			url:     "",
 			wantErr: true,
-			err:     transport.ErrNotFound,
+			err:     service.ErrNotFound,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := inmemstorage.MustNew(mem)
+			s := inmemstorage.MustNew(mem, mem2)
 			got, err := s.URL(context.Background(), tt.id)
 			if tt.wantErr {
-				require.ErrorIs(t, err, transport.ErrNotFound)
+				require.ErrorIs(t, err, service.ErrNotFound)
 				return
 			}
 			if got != tt.url {

@@ -11,12 +11,14 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/lks-go/url-shortener/internal/lib/random"
-	"github.com/lks-go/url-shortener/internal/transport"
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/infilestorage"
 	"github.com/lks-go/url-shortener/pkg/fs"
 )
 
-const testFileName = "./test_storage_file"
+const (
+	testFileName = "./test_storage_file"
+)
 
 func deleteFile(t *testing.T) {
 	t.Helper()
@@ -64,7 +66,10 @@ func TestStorage_Exists(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s := infilestorage.New(testFileName)
+			s := infilestorage.New(infilestorage.Config{
+				UrlsFilename:  testFileName,
+				UsersURLCodes: testFileName,
+			})
 			got, err := s.Exists(context.Background(), tt.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Exists() error = %v, wantErr %v", err, tt.wantErr)
@@ -97,7 +102,10 @@ func TestStorage_Save(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := infilestorage.New(testFileName)
+			s := infilestorage.New(infilestorage.Config{
+				UrlsFilename:  testFileName,
+				UsersURLCodes: testFileName,
+			})
 
 			if err := s.Save(context.Background(), tt.id, tt.url); (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
@@ -139,15 +147,18 @@ func TestStorage_URL(t *testing.T) {
 			id:      id2,
 			url:     "",
 			wantErr: true,
-			err:     transport.ErrNotFound,
+			err:     service.ErrNotFound,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := infilestorage.New(testFileName)
+			s := infilestorage.New(infilestorage.Config{
+				UrlsFilename:  testFileName,
+				UsersURLCodes: testFileName,
+			})
 			got, err := s.URL(context.Background(), tt.id)
 			if tt.wantErr {
-				require.ErrorIs(t, err, transport.ErrNotFound)
+				require.ErrorIs(t, err, service.ErrNotFound)
 				return
 			}
 			if got != tt.url {

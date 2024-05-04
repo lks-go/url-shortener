@@ -9,7 +9,6 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/lks-go/url-shortener/internal/service"
-	"github.com/lks-go/url-shortener/internal/transport"
 )
 
 func New(db *sql.DB) *Storage {
@@ -92,7 +91,7 @@ func (s *Storage) URL(ctx context.Context, code string) (string, error) {
 	row := s.db.QueryRowContext(ctx, q, code)
 	if err := row.Scan(&url); err != nil {
 		if err == sql.ErrNoRows {
-			return "", transport.ErrNotFound
+			return "", service.ErrNotFound
 		}
 		return "", fmt.Errorf("failed to scan row: %w", err)
 	}
@@ -118,4 +117,47 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	}
 
 	return code, nil
+}
+
+func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
+	q := `INSERT INTO USER_CODES (USER_ID, CODE) VALUES ($1, $2);`
+
+	_, err := s.db.ExecContext(ctx, q, userID, code)
+	if err != nil {
+		if err, ok := err.(*pgconn.PgError); ok {
+			if err.Code == pgerrcode.UniqueViolation {
+				return service.ErrRecordAlreadyExists
+			}
+		}
+
+		return fmt.Errorf("failed to exec query: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
+	q := `SELECT CODE FROM user_codes WHERE USER_ID = $1;`
+
+	rows, err := s.db.QueryContext(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make query: %w", err)
+	}
+	defer rows.Close()
+
+	codes := make([]string, 0)
+	for rows.Next() {
+		var code string
+		if err := rows.Scan(&code); err != nil {
+			return nil, fmt.Errorf("failed to scan code: %w", err)
+		}
+
+		codes = append(codes, code)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return codes, nil
 }

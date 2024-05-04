@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/lks-go/url-shortener/internal/transport"
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers/mocks"
 )
@@ -62,7 +62,7 @@ func TestHandlers_Redirect(t *testing.T) {
 			},
 			callMocks: func() {
 				serviceMock.On("URL", mock.Anything, "123457").
-					Return("", transport.ErrNotFound).Once()
+					Return("", service.ErrNotFound).Once()
 			},
 		},
 		{

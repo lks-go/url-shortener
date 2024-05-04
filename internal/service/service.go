@@ -6,14 +6,15 @@ import (
 	"fmt"
 )
 
-var (
-	ErrURLAlreadyExists = errors.New("URL already exists")
-)
-
 type URL struct {
 	СorrelationID string
 	OriginalURL   string
 	Code          string
+}
+
+type UsersURL struct {
+	Code        string
+	OriginalURL string
 }
 
 type URLStorage interface {
@@ -22,6 +23,8 @@ type URLStorage interface {
 	Exists(ctx context.Context, code string) (bool, error)
 	URL(ctx context.Context, id string) (string, error)
 	CodeByURL(ctx context.Context, url string) (string, error)
+	SaveUsersCode(ctx context.Context, userID string, code string) error
+	UsersURLCodes(ctx context.Context, userID string) ([]string, error)
 }
 
 type Config struct {
@@ -95,6 +98,32 @@ func (s *Service) MakeBatchShortURL(ctx context.Context, urls []URL) ([]URL, err
 	}
 
 	return urls, nil
+}
+
+func (s *Service) UsersURLs(ctx context.Context, userID string) ([]UsersURL, error) {
+	codes, err := s.storage.UsersURLCodes(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users url codes: %w", err)
+	}
+
+	userURLs := make([]UsersURL, 0, len(codes))
+	for _, c := range codes {
+		u, err := s.storage.URL(ctx, c)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, fmt.Errorf("failed to get url by code: %w", err)
+		}
+
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+
+		userURLs = append(userURLs, UsersURL{
+			Code:        c,
+			OriginalURL: u,
+		})
+	}
+
+	return userURLs, nil
 }
 
 func (s *Service) generateShort(ctx context.Context) (string, error) {
