@@ -15,25 +15,25 @@ type Service struct {
 	mock.Mock
 }
 
-// MakeBatchShortURL provides a mock function with given fields: ctx, urls
-func (_m *Service) MakeBatchShortURL(ctx context.Context, urls []service.URL) ([]service.URL, error) {
-	ret := _m.Called(ctx, urls)
+// MakeBatchShortURL provides a mock function with given fields: ctx, userId, urls
+func (_m *Service) MakeBatchShortURL(ctx context.Context, userId string, urls []service.URL) ([]service.URL, error) {
+	ret := _m.Called(ctx, userId, urls)
 
 	var r0 []service.URL
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, []service.URL) ([]service.URL, error)); ok {
-		return rf(ctx, urls)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []service.URL) ([]service.URL, error)); ok {
+		return rf(ctx, userId, urls)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, []service.URL) []service.URL); ok {
-		r0 = rf(ctx, urls)
+	if rf, ok := ret.Get(0).(func(context.Context, string, []service.URL) []service.URL); ok {
+		r0 = rf(ctx, userId, urls)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]service.URL)
 		}
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, []service.URL) error); ok {
-		r1 = rf(ctx, urls)
+	if rf, ok := ret.Get(1).(func(context.Context, string, []service.URL) error); ok {
+		r1 = rf(ctx, userId, urls)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -41,23 +41,23 @@ func (_m *Service) MakeBatchShortURL(ctx context.Context, urls []service.URL) ([
 	return r0, r1
 }
 
-// MakeShortURL provides a mock function with given fields: ctx, url
-func (_m *Service) MakeShortURL(ctx context.Context, url string) (string, error) {
-	ret := _m.Called(ctx, url)
+// MakeShortURL provides a mock function with given fields: ctx, userId, url
+func (_m *Service) MakeShortURL(ctx context.Context, userId string, url string) (string, error) {
+	ret := _m.Called(ctx, userId, url)
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, url)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
+		return rf(ctx, userId, url)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, url)
+	if rf, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
+		r0 = rf(ctx, userId, url)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, url)
+	if rf, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = rf(ctx, userId, url)
 	} else {
 		r1 = ret.Error(1)
 	}

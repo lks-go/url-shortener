@@ -29,6 +29,7 @@ func New(memStoreShortenURLs map[string]string, memUsersURLsCodes map[string][]s
 
 	return &Storage{
 		shortenURLs: memStoreShortenURLs,
+		usersURLs:   memUsersURLsCodes,
 		mu:          sync.RWMutex{},
 	}, nil
 }

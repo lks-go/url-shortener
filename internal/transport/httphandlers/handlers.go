@@ -18,8 +18,8 @@ import (
 
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
-	MakeBatchShortURL(ctx context.Context, urls []service.URL) ([]service.URL, error)
-	MakeShortURL(ctx context.Context, url string) (string, error)
+	MakeBatchShortURL(ctx context.Context, userId string, urls []service.URL) ([]service.URL, error)
+	MakeShortURL(ctx context.Context, userId, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)
 	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
 }
@@ -47,13 +47,19 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	if !ok || len(userID) == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	b, err := io.ReadAll(req.Body)
 	if err != nil {
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
-	id, err := h.service.MakeShortURL(req.Context(), string(b))
+	id, err := h.service.MakeShortURL(req.Context(), userID[0], string(b))
 	if err != nil && !errors.Is(err, service.ErrURLAlreadyExists) {
 		logrus.Errorf("failed to make short url: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -109,6 +115,12 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
+	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	if !ok || len(userID) == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	type url struct {
 		CorrelationID string `json:"correlation_id"`
 		OriginalURL   string `json:"original_url"`
@@ -128,7 +140,7 @@ func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
 		})
 	}
 
-	shortURLList, err := h.service.MakeBatchShortURL(req.Context(), urlList)
+	shortURLList, err := h.service.MakeBatchShortURL(req.Context(), userID[0], urlList)
 	if err != nil {
 		logrus.Errorf("failed to make batch short urls: %s", err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -172,6 +184,12 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	if !ok || len(userID) == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	body := struct {
 		URL string `json:"url"`
 	}{}
@@ -183,7 +201,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 
 	isConflict := false
 
-	code, err := h.service.MakeShortURL(req.Context(), body.URL)
+	code, err := h.service.MakeShortURL(req.Context(), userID[0], body.URL)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrURLAlreadyExists):
@@ -216,7 +234,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
-	userID, ok := req.Header["User-ID"]
+	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -250,6 +268,12 @@ func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
 	}
 
 	w.Header().Add("Content-Type", "application/json")
+	if len(resp) == 0 {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(buf.Bytes())
 	if err != nil {
 		logrus.Errorf("failed write response: %s", err)
