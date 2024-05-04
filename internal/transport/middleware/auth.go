@@ -66,7 +66,7 @@ func WithAuth(next http.Handler) http.Handler {
 			http.SetCookie(w, &newCookie)
 		}
 
-		r.Header.Set("user_id", userID)
+		r.Header.Set("User-ID", userID)
 		next.ServeHTTP(w, r)
 	}
 

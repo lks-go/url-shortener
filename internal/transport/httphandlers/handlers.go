@@ -216,7 +216,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
-	userID, ok := req.Header["user_id"]
+	userID, ok := req.Header["User-ID"]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return

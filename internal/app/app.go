@@ -73,6 +73,7 @@ func (a *App) Run() error {
 	r.Post("/", h.ShortURL)
 	r.Post("/api/shorten", h.ShortenURL)
 	r.Post("/api/shorten/batch", h.ShortenBatchURL)
+	r.Get("/api/user/urls", h.UsersURLs)
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		if err := pool.Ping(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
