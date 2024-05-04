@@ -47,7 +47,7 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -115,7 +115,7 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
-	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -184,7 +184,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
@@ -234,7 +234,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 }
 
 func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
-	userID, ok := req.Header[http.CanonicalHeaderKey("user-id")]
+	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
 		w.WriteHeader(http.StatusUnauthorized)
 		return
