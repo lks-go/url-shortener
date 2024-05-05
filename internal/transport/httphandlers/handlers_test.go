@@ -244,9 +244,3 @@ func TestHandlers_ShortenURL(t *testing.T) {
 		})
 	}
 }
-
-func TestTest(t *testing.T) {
-
-	t.Log(http.CanonicalHeaderKey("user-id"))
-
-}

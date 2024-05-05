@@ -66,7 +66,12 @@ func WithAuth(next http.Handler) http.Handler {
 			http.SetCookie(w, &newCookie)
 		}
 
-		r.Header.Set(http.CanonicalHeaderKey("user-id"), userID)
+		if userID == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		r.Header.Set("User-Id", userID)
 		next.ServeHTTP(w, r)
 	}
 
