@@ -269,7 +269,7 @@ func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
 
 	w.Header().Add("Content-Type", "application/json")
 	if len(resp) == 0 {
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(http.StatusUnauthorized)
 		return
 	}
 
