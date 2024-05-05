@@ -66,10 +66,7 @@ func TestStorage_Exists(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			s := infilestorage.New(infilestorage.Config{
-				UrlsFilename:  testFileName,
-				UsersURLCodes: testFileName,
-			})
+			s := infilestorage.New(testFileName)
 			got, err := s.Exists(context.Background(), tt.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Exists() error = %v, wantErr %v", err, tt.wantErr)
@@ -102,10 +99,7 @@ func TestStorage_Save(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := infilestorage.New(infilestorage.Config{
-				UrlsFilename:  testFileName,
-				UsersURLCodes: testFileName,
-			})
+			s := infilestorage.New(testFileName)
 
 			if err := s.Save(context.Background(), tt.id, tt.url); (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
@@ -152,10 +146,7 @@ func TestStorage_URL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := infilestorage.New(infilestorage.Config{
-				UrlsFilename:  testFileName,
-				UsersURLCodes: testFileName,
-			})
+			s := infilestorage.New(testFileName)
 			got, err := s.URL(context.Background(), tt.id)
 			if tt.wantErr {
 				require.ErrorIs(t, err, service.ErrNotFound)

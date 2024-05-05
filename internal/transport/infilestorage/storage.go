@@ -12,22 +12,19 @@ import (
 )
 
 type Config struct {
-	UrlsFilename  string
-	UsersURLCodes string
+	UrlsFilename string
 }
 
-func New(cfg Config) *Storage {
+func New(filename string) *Storage {
 	return &Storage{
-		urlsFilename:  cfg.UrlsFilename,
-		usersURLCodes: cfg.UsersURLCodes,
-		mu:            sync.Mutex{},
+		urlsFilename: filename,
+		mu:           sync.Mutex{},
 	}
 }
 
 type Storage struct {
-	urlsFilename  string
-	usersURLCodes string
-	mu            sync.Mutex
+	urlsFilename string
+	mu           sync.Mutex
 }
 
 func (s *Storage) Save(ctx context.Context, id, url string) error {
@@ -119,32 +116,11 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 }
 
 func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
-	recordList, err := s.recordList(s.usersURLCodes)
-	if err != nil {
-		return fmt.Errorf("filed to get record list: %w", err)
-	}
-
-	for _, rec := range recordList {
-		if rec.ShortURL == code {
-			return service.ErrRecordAlreadyExists
-		}
-	}
-
-	r := fs.Record{
-		ShortURL: code,
-		UserID:   userID,
-	}
-
-	if err := s.append(s.usersURLCodes, &r); err != nil {
-		return fmt.Errorf("failed to append row: %w", err)
-	}
-
 	return nil
 }
 
 func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
-	//TODO implement me
-	panic("implement me")
+	return []string{}, nil
 }
 
 func (s *Storage) recordList(fileName string) ([]fs.Record, error) {

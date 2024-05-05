@@ -13,7 +13,7 @@ func TestService_MakeShortURL(t *testing.T) {
 	wantedID := "abcdef"
 	cfg := service.Config{IDSize: 6}
 	deps := service.Dependencies{
-		Storage: inmemstorage.MustNew(map[string]string{}, map[string][]string{}),
+		Storage: inmemstorage.MustNew(map[string]string{}),
 		RandomString: func(size int) string {
 			return wantedID
 		},
@@ -54,7 +54,7 @@ func TestService_URL(t *testing.T) {
 	url := "http://ya.ru"
 
 	deps := service.Dependencies{
-		Storage: inmemstorage.MustNew(map[string]string{id: url}, map[string][]string{}),
+		Storage: inmemstorage.MustNew(map[string]string{id: url}),
 	}
 
 	s := service.New(service.Config{}, deps)

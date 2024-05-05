@@ -8,8 +8,8 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
-func MustNew(memStoreShortenURLs map[string]string, memUsersURLsCodes map[string][]string) *Storage {
-	s, err := New(memStoreShortenURLs, memUsersURLsCodes)
+func MustNew(memStoreShortenURLs map[string]string) *Storage {
+	s, err := New(memStoreShortenURLs)
 	if err != nil {
 		panic(err)
 	}
@@ -17,26 +17,20 @@ func MustNew(memStoreShortenURLs map[string]string, memUsersURLsCodes map[string
 	return s
 }
 
-func New(memStoreShortenURLs map[string]string, memUsersURLsCodes map[string][]string) (*Storage, error) {
+func New(memStoreShortenURLs map[string]string) (*Storage, error) {
 
 	if memStoreShortenURLs == nil {
 		return nil, errors.New("memory storage of shorten URL must not be nil")
 	}
 
-	if memUsersURLsCodes == nil {
-		return nil, errors.New("memory storage of user's URL codes  must not be nil")
-	}
-
 	return &Storage{
 		shortenURLs: memStoreShortenURLs,
-		usersURLs:   memUsersURLsCodes,
 		mu:          sync.RWMutex{},
 	}, nil
 }
 
 type Storage struct {
 	shortenURLs map[string]string
-	usersURLs   map[string][]string
 	mu          sync.RWMutex
 }
 
@@ -96,33 +90,11 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 }
 
 func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	codes, ok := s.usersURLs[userID]
-	if !ok {
-		codes = make([]string, 0)
-	}
-
-	for _, c := range codes {
-		if c == code {
-			return service.ErrRecordAlreadyExists
-		}
-	}
-
-	s.usersURLs[userID] = append(codes, code)
 
 	return nil
 }
 
 func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 
-	codes, ok := s.usersURLs[userID]
-	if !ok {
-		return nil, service.ErrNotFound
-	}
-
-	return codes, nil
+	return []string{}, nil
 }

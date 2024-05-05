@@ -44,14 +44,9 @@ func (a *App) Run() error {
 
 		storage = dbstorage.New(pool)
 	case a.Config.FileStoragePath != "":
-		storage = infilestorage.New(infilestorage.Config{
-			UrlsFilename:  a.Config.FileStoragePath,
-			UsersURLCodes: a.Config.FileStoragePath,
-		})
+		storage = infilestorage.New(a.Config.FileStoragePath)
 	default:
-		memStoreShortenURLs := make(map[string]string)
-		memUsersURLsCodes := make(map[string][]string)
-		storage = inmemstorage.MustNew(memStoreShortenURLs, memUsersURLsCodes)
+		storage = inmemstorage.MustNew(make(map[string]string))
 	}
 
 	s := service.New(service.Config{IDSize: 8}, service.Dependencies{

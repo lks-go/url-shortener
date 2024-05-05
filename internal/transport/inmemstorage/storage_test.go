@@ -19,7 +19,6 @@ func TestStorage_Exists(t *testing.T) {
 	mem := map[string]string{
 		id1: "https://ya.ru",
 	}
-	mem2 := make(map[string][]string)
 
 	tests := []struct {
 		name    string
@@ -42,7 +41,7 @@ func TestStorage_Exists(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := inmemstorage.MustNew(mem, mem2)
+			s := inmemstorage.MustNew(mem)
 			got, err := s.Exists(context.Background(), tt.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Exists() error = %v, wantErr %v", err, tt.wantErr)
@@ -73,8 +72,7 @@ func TestStorage_Save(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mem := map[string]string{}
-			mem2 := make(map[string][]string)
-			s := inmemstorage.MustNew(mem, mem2)
+			s := inmemstorage.MustNew(mem)
 
 			if err := s.Save(context.Background(), tt.url, tt.id); (err != nil) != tt.wantErr {
 				t.Errorf("Save() error = %v, wantErr %v", err, tt.wantErr)
@@ -95,8 +93,7 @@ func TestStorage_URL(t *testing.T) {
 	mem := map[string]string{
 		id1: wantedURL,
 	}
-	mem2 := make(map[string][]string)
-
+	
 	tests := []struct {
 		name    string
 		id      string
@@ -120,7 +117,7 @@ func TestStorage_URL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := inmemstorage.MustNew(mem, mem2)
+			s := inmemstorage.MustNew(mem)
 			got, err := s.URL(context.Background(), tt.id)
 			if tt.wantErr {
 				require.ErrorIs(t, err, service.ErrNotFound)
