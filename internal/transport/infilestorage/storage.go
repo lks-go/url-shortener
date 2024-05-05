@@ -7,25 +7,29 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/lks-go/url-shortener/internal/transport"
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/pkg/fs"
 )
 
+type Config struct {
+	UrlsFilename string
+}
+
 func New(filename string) *Storage {
 	return &Storage{
-		filename: filename,
-		mu:       sync.Mutex{},
+		urlsFilename: filename,
+		mu:           sync.Mutex{},
 	}
 }
 
 type Storage struct {
-	filename string
-	mu       sync.Mutex
+	urlsFilename string
+	mu           sync.Mutex
 }
 
 func (s *Storage) Save(ctx context.Context, id, url string) error {
 
-	l, err := s.urlList()
+	l, err := s.recordList(s.urlsFilename)
 	if err != nil {
 		return fmt.Errorf("failed to get url list: %w", err)
 	}
@@ -36,8 +40,8 @@ func (s *Storage) Save(ctx context.Context, id, url string) error {
 		OriginalURL: url,
 	}
 
-	if err := s.append(&r); err != nil {
-		return fmt.Errorf("failed to append row")
+	if err := s.append(s.urlsFilename, &r); err != nil {
+		return fmt.Errorf("failed to append row: %w", err)
 	}
 
 	return nil
@@ -45,7 +49,7 @@ func (s *Storage) Save(ctx context.Context, id, url string) error {
 
 func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 
-	l, err := s.urlList()
+	l, err := s.recordList(s.urlsFilename)
 	if err != nil {
 		return false, fmt.Errorf("failed to get url list: %w", err)
 	}
@@ -61,7 +65,7 @@ func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 
 func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 
-	l, err := s.urlList()
+	l, err := s.recordList(s.urlsFilename)
 	if err != nil {
 		return "", fmt.Errorf("failed to get url list: %w", err)
 	}
@@ -72,14 +76,58 @@ func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 		}
 	}
 
-	return "", transport.ErrNotFound
+	return "", service.ErrNotFound
 }
 
-func (s *Storage) urlList() ([]fs.Record, error) {
+func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
+	l, err := s.recordList(s.urlsFilename)
+	if err != nil {
+		return fmt.Errorf("failed to get url list: %w", err)
+	}
+
+	for _, u := range url {
+		r := fs.Record{
+			UUID:        strconv.Itoa(len(l) + 1),
+			ShortURL:    u.Code,
+			OriginalURL: u.OriginalURL,
+		}
+
+		if err := s.append(s.urlsFilename, &r); err != nil {
+			return fmt.Errorf("failed to append row: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
+	l, err := s.recordList(s.urlsFilename)
+	if err != nil {
+		return "", fmt.Errorf("failed to get url list: %w", err)
+	}
+
+	for _, row := range l {
+		if row.OriginalURL == url {
+			return row.ShortURL, nil
+		}
+	}
+
+	return "", service.ErrNotFound
+}
+
+func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
+	return nil
+}
+
+func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
+	return []string{}, nil
+}
+
+func (s *Storage) recordList(fileName string) ([]fs.Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	consumer, err := fs.NewConsumer(s.filename)
+	consumer, err := fs.NewConsumer(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get consumer: %w", err)
 	}
@@ -103,11 +151,11 @@ func (s *Storage) urlList() ([]fs.Record, error) {
 	return rows, nil
 }
 
-func (s *Storage) append(r *fs.Record) error {
+func (s *Storage) append(fileName string, r *fs.Record) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	producer, err := fs.NewProducer(s.filename)
+	producer, err := fs.NewProducer(fileName)
 	if err != nil {
 		return fmt.Errorf("failed to get producer: %w", err)
 	}

@@ -2,13 +2,29 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 )
 
+type URL struct {
+	СorrelationID string
+	OriginalURL   string
+	Code          string
+}
+
+type UsersURL struct {
+	Code        string
+	OriginalURL string
+}
+
 type URLStorage interface {
-	Save(ctx context.Context, id, url string) error
-	Exists(ctx context.Context, id string) (bool, error)
+	Save(ctx context.Context, code, url string) error
+	SaveBatch(ctx context.Context, url []URL) error
+	Exists(ctx context.Context, code string) (bool, error)
 	URL(ctx context.Context, id string) (string, error)
+	CodeByURL(ctx context.Context, url string) (string, error)
+	SaveUsersCode(ctx context.Context, userID string, code string) error
+	UsersURLCodes(ctx context.Context, userID string) ([]string, error)
 }
 
 type Config struct {
@@ -34,32 +50,31 @@ type Service struct {
 	randomString func(size int) string
 }
 
-func (s *Service) MakeShortURL(ctx context.Context, url string) (string, error) {
-
-	id := ""
-	for {
-		select {
-		case <-ctx.Done():
-			return "", ctx.Err()
-		default:
-		}
-
-		id = s.randomString(s.cfg.IDSize)
-		exists, err := s.storage.Exists(ctx, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to check url id: %w", err)
-		}
-
-		if !exists {
-			break
-		}
+func (s *Service) MakeShortURL(ctx context.Context, userID, url string) (string, error) {
+	code, err := s.generateShort(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to assign short: %w", err)
 	}
 
-	if err := s.storage.Save(ctx, id, url); err != nil {
+	err = s.storage.Save(ctx, code, url)
+	if err != nil && !errors.Is(err, ErrURLAlreadyExists) {
 		return "", fmt.Errorf("filed to save url: %w", err)
 	}
 
-	return id, nil
+	if err := s.storage.SaveUsersCode(ctx, userID, code); err != nil {
+		return "", fmt.Errorf("failed to save user code: %w", err)
+	}
+
+	if errors.Is(err, ErrURLAlreadyExists) {
+		code, err = s.storage.CodeByURL(ctx, url)
+		if err != nil {
+			return "", fmt.Errorf("failed to get ID by URL: %w", err)
+		}
+
+		return code, ErrURLAlreadyExists
+	}
+
+	return code, nil
 }
 
 func (s *Service) URL(ctx context.Context, id string) (string, error) {
@@ -69,4 +84,78 @@ func (s *Service) URL(ctx context.Context, id string) (string, error) {
 	}
 
 	return url, nil
+}
+
+func (s *Service) MakeBatchShortURL(ctx context.Context, userID string, urls []URL) ([]URL, error) {
+
+	for i := range urls {
+		code, err := s.generateShort(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to assign short: %w", err)
+		}
+
+		urls[i].Code = code
+	}
+
+	if err := s.storage.SaveBatch(ctx, urls); err != nil {
+		return nil, fmt.Errorf("failed to save batch of urls: %w", err)
+	}
+
+	for _, u := range urls {
+		if err := s.storage.SaveUsersCode(ctx, userID, u.Code); err != nil {
+			return nil, fmt.Errorf("failed to save user code: %w", err)
+		}
+	}
+
+	return urls, nil
+}
+
+func (s *Service) UsersURLs(ctx context.Context, userID string) ([]UsersURL, error) {
+	codes, err := s.storage.UsersURLCodes(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users url codes: %w", err)
+	}
+
+	userURLs := make([]UsersURL, 0, len(codes))
+	for _, c := range codes {
+		u, err := s.storage.URL(ctx, c)
+		if err != nil && !errors.Is(err, ErrNotFound) {
+			return nil, fmt.Errorf("failed to get url by code: %w", err)
+		}
+
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
+
+		userURLs = append(userURLs, UsersURL{
+			Code:        c,
+			OriginalURL: u,
+		})
+	}
+
+	return userURLs, nil
+}
+
+func (s *Service) generateShort(ctx context.Context) (string, error) {
+	short := ""
+
+	for {
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		default:
+		}
+
+		short = s.randomString(s.cfg.IDSize)
+		exists, err := s.storage.Exists(ctx, short)
+		if err != nil {
+			return "", fmt.Errorf("failed to check url id: %w", err)
+		}
+
+		if !exists {
+			break
+		}
+	}
+
+	return short, nil
 }
