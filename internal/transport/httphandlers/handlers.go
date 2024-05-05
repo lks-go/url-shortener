@@ -18,8 +18,8 @@ import (
 
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
-	MakeBatchShortURL(ctx context.Context, userId string, urls []service.URL) ([]service.URL, error)
-	MakeShortURL(ctx context.Context, userId, url string) (string, error)
+	MakeBatchShortURL(ctx context.Context, userID string, urls []service.URL) ([]service.URL, error)
+	MakeShortURL(ctx context.Context, userID, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)
 	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
 }

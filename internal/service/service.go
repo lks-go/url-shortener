@@ -50,7 +50,7 @@ type Service struct {
 	randomString func(size int) string
 }
 
-func (s *Service) MakeShortURL(ctx context.Context, userId, url string) (string, error) {
+func (s *Service) MakeShortURL(ctx context.Context, userID, url string) (string, error) {
 	code, err := s.generateShort(ctx)
 	if err != nil {
 		return "", fmt.Errorf("failed to assign short: %w", err)
@@ -61,7 +61,7 @@ func (s *Service) MakeShortURL(ctx context.Context, userId, url string) (string,
 		return "", fmt.Errorf("filed to save url: %w", err)
 	}
 
-	if err := s.storage.SaveUsersCode(ctx, userId, code); err != nil {
+	if err := s.storage.SaveUsersCode(ctx, userID, code); err != nil {
 		return "", fmt.Errorf("failed to save user code: %w", err)
 	}
 
@@ -86,7 +86,7 @@ func (s *Service) URL(ctx context.Context, id string) (string, error) {
 	return url, nil
 }
 
-func (s *Service) MakeBatchShortURL(ctx context.Context, userId string, urls []URL) ([]URL, error) {
+func (s *Service) MakeBatchShortURL(ctx context.Context, userID string, urls []URL) ([]URL, error) {
 
 	for i := range urls {
 		code, err := s.generateShort(ctx)
@@ -102,7 +102,7 @@ func (s *Service) MakeBatchShortURL(ctx context.Context, userId string, urls []U
 	}
 
 	for _, u := range urls {
-		if err := s.storage.SaveUsersCode(ctx, userId, u.Code); err != nil {
+		if err := s.storage.SaveUsersCode(ctx, userID, u.Code); err != nil {
 			return nil, fmt.Errorf("failed to save user code: %w", err)
 		}
 	}

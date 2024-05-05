@@ -44,6 +44,11 @@ func WithAuth(next http.Handler) http.Handler {
 				return
 			}
 
+			if claims != nil && claims.UserID == "" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
 			if claims != nil {
 				userID = claims.UserID
 			}
@@ -64,11 +69,6 @@ func WithAuth(next http.Handler) http.Handler {
 			}
 
 			http.SetCookie(w, &newCookie)
-		}
-
-		if userID == "" {
-			w.WriteHeader(http.StatusUnauthorized)
-			return
 		}
 
 		r.Header.Set("User-Id", userID)
