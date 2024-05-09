@@ -85,11 +85,12 @@ func (s *Storage) Exists(ctx context.Context, code string) (bool, error) {
 }
 
 func (s *Storage) URL(ctx context.Context, code string) (string, error) {
-	q := "SELECT url FROM shorten WHERE code = $1"
+	q := "SELECT url, deleted FROM shorten WHERE code = $1"
 
-	url := ""
+	var url string
+	var deleted sql.NullBool
 	row := s.db.QueryRowContext(ctx, q, code)
-	if err := row.Scan(&url); err != nil {
+	if err := row.Scan(&url, &deleted); err != nil {
 		if err == sql.ErrNoRows {
 			return "", service.ErrNotFound
 		}
@@ -98,6 +99,10 @@ func (s *Storage) URL(ctx context.Context, code string) (string, error) {
 
 	if err := row.Err(); err != nil {
 		return "", fmt.Errorf("row error: %w", err)
+	}
+
+	if deleted.Valid && deleted.Bool {
+		return "", service.ErrDeleted
 	}
 
 	return url, nil

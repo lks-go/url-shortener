@@ -7,4 +7,5 @@ var (
 	ErrRecordAlreadyExists = errors.New("record already exists")
 	ErrURLAlreadyExists    = errors.New("URL already exists")
 	ErrURLDeleterStopped   = errors.New("URL deleter stopped")
+	ErrDeleted             = errors.New("URL deleted")
 )

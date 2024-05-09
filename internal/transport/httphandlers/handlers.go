@@ -113,6 +113,8 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 			if err != nil {
 				http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 			}
+		case errors.Is(err, service.ErrDeleted):
+			w.WriteHeader(http.StatusGone)
 		default:
 			logrus.Errorf("failed to get url by code [%s]: %s", code, err)
 			w.WriteHeader(http.StatusInternalServerError)
