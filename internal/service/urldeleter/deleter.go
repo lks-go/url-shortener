@@ -3,7 +3,6 @@ package urldeleter
 import (
 	"context"
 	"fmt"
-	"slices"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -114,10 +113,20 @@ func (d *URLDeleter) Delete(ctx context.Context, userID string, codes []string) 
 	}
 
 	for _, code := range codes {
-		if slices.Index(belongCodes, code) >= 0 {
+		if isBelong(belongCodes, code) {
 			d.queue <- code
 		}
 	}
 
 	return nil
+}
+
+func isBelong(belongCodes []string, code string) bool {
+	for _, c := range belongCodes {
+		if c == code {
+			return true
+		}
+	}
+
+	return false
 }
