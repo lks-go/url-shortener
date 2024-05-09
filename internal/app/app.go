@@ -11,6 +11,7 @@ import (
 
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
+	"github.com/lks-go/url-shortener/internal/service/urldeleter"
 	"github.com/lks-go/url-shortener/internal/transport/dbstorage"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
 	"github.com/lks-go/url-shortener/internal/transport/infilestorage"
@@ -54,7 +55,11 @@ func (a *App) Run() error {
 		RandomString: random.NewString,
 	})
 
-	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s})
+	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
+	d.Start()
+	defer d.Stop()
+
+	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s, Deleter: d})
 
 	r := chi.NewRouter()
 	r.Use(
@@ -69,6 +74,7 @@ func (a *App) Run() error {
 	r.Post("/api/shorten", h.ShortenURL)
 	r.Post("/api/shorten/batch", h.ShortenBatchURL)
 	r.Get("/api/user/urls", h.UsersURLs)
+	r.Delete("/api/user/urls", h.Delete)
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		if err := pool.Ping(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)

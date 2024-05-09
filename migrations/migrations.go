@@ -23,6 +23,10 @@ func RunUp(db *sql.DB) error {
 		return fmt.Errorf("failed to create index for 'user_codes': %w", err)
 	}
 
+	if err := addColumnDeleteToShorten(db); err != nil {
+		return fmt.Errorf("failed to add column to 'shorten': %w", err)
+	}
+
 	return nil
 }
 
@@ -64,6 +68,15 @@ func createTableUserCodes(db *sql.DB) error {
 
 func createIndexForUserCodes(db *sql.DB) error {
 	q := `CREATE UNIQUE INDEX IF NOT EXISTS USER_ID_CODE_KEY ON USER_CODES(USER_ID, CODE);`
+	if _, err := db.Exec(q); err != nil {
+		return fmt.Errorf("failed to exec query: %w", err)
+	}
+
+	return nil
+}
+
+func addColumnDeleteToShorten(db *sql.DB) error {
+	q := `ALTER TABLE shorten ADD COLUMN IF NOT EXISTS deleted BOOL;`
 	if _, err := db.Exec(q); err != nil {
 		return fmt.Errorf("failed to exec query: %w", err)
 	}

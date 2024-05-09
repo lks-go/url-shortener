@@ -123,6 +123,10 @@ func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, e
 	return []string{}, nil
 }
 
+func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
+	return nil
+}
+
 func (s *Storage) recordList(fileName string) ([]fs.Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

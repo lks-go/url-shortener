@@ -161,3 +161,14 @@ func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, e
 
 	return codes, nil
 }
+
+func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
+	q := `UPDATE shorten SET deleted = true WHERE code = ANY($1);`
+
+	_, err := s.db.ExecContext(ctx, q, codes)
+	if err != nil {
+		return fmt.Errorf("failed to exec query: %w", err)
+	}
+
+	return nil
+}

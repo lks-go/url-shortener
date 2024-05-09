@@ -89,6 +89,10 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	return "", service.ErrNotFound
 }
 
+func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
+	return nil
+}
+
 func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
 
 	return nil

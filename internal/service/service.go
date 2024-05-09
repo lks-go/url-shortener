@@ -25,6 +25,7 @@ type URLStorage interface {
 	CodeByURL(ctx context.Context, url string) (string, error)
 	SaveUsersCode(ctx context.Context, userID string, code string) error
 	UsersURLCodes(ctx context.Context, userID string) ([]string, error)
+	DeleteURLs(ctx context.Context, codes []string) error
 }
 
 type Config struct {

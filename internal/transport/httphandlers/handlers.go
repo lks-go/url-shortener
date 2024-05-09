@@ -24,17 +24,27 @@ type Service interface {
 	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
 }
 
+type Deleter interface {
+	Delete(ctx context.Context, userID string, codes []string) error
+}
+
 type Dependencies struct {
 	Service
+	Deleter
 }
 
 func New(basePath string, deps Dependencies) *Handlers {
-	return &Handlers{redirectBasePath: strings.TrimRight(basePath, "/"), service: deps.Service}
+	return &Handlers{
+		redirectBasePath: strings.TrimRight(basePath, "/"),
+		service:          deps.Service,
+		deleter:          deps.Deleter,
+	}
 }
 
 type Handlers struct {
 	redirectBasePath string
 	service          Service
+	deleter          Deleter
 }
 
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
@@ -294,4 +304,33 @@ func (h *Handlers) shortenURLResponse(code string) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (h *Handlers) Delete(w http.ResponseWriter, req *http.Request) {
+	userID, ok := req.Header["User-Id"]
+	if !ok || len(userID) == 0 {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	b, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	defer req.Body.Close()
+
+	var codes []string
+	if err = json.Unmarshal(b, &codes); err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	go func() {
+		if err := h.deleter.Delete(context.Background(), userID[0], codes); err != nil {
+			logrus.Errorf("failed to delete urls (userId = %s, codes = [%v]): %s", userID, codes, err)
+		}
+	}()
+
+	w.WriteHeader(http.StatusAccepted)
 }
