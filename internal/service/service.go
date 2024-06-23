@@ -17,6 +17,7 @@ type UsersURL struct {
 	OriginalURL string
 }
 
+//go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=URLStorage
 type URLStorage interface {
 	Save(ctx context.Context, code, url string) error
 	SaveBatch(ctx context.Context, url []URL) error

@@ -4,7 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+
+	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
+	"github.com/lks-go/url-shortener/internal/service/mocks"
 	"github.com/lks-go/url-shortener/internal/transport/inmemstorage"
 )
 
@@ -88,5 +92,38 @@ func TestService_URL(t *testing.T) {
 				t.Errorf("URL() got = %v, want %v", got, tt.wantURL)
 			}
 		})
+	}
+}
+
+func BenchmarkService_MakeShortURL(b *testing.B) {
+	cfg := service.Config{IDSize: 6}
+	URLStorageMock := mocks.NewURLStorage(b)
+	URLStorageMock.On("Exists", mock.Anything, mock.Anything).Return(false, nil)
+	URLStorageMock.On("Save", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	URLStorageMock.On("SaveUsersCode", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
+	deps := service.Dependencies{
+		Storage:      URLStorageMock,
+		RandomString: random.NewString,
+	}
+
+	s := service.New(cfg, deps)
+	for i := 0; i < b.N; i++ {
+		s.MakeShortURL(context.Background(), "", "")
+	}
+}
+
+func BenchmarkService_URL(b *testing.B) {
+	cfg := service.Config{}
+	URLStorageMock := mocks.NewURLStorage(b)
+	URLStorageMock.On("URL", mock.Anything, mock.Anything).Return("", nil)
+
+	deps := service.Dependencies{
+		Storage: URLStorageMock,
+	}
+
+	s := service.New(cfg, deps)
+	for i := 0; i < b.N; i++ {
+		s.URL(context.Background(), "")
 	}
 }
