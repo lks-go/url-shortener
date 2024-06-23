@@ -93,7 +93,7 @@ func TestStorage_URL(t *testing.T) {
 	mem := map[string]string{
 		id1: wantedURL,
 	}
-	
+
 	tests := []struct {
 		name    string
 		id      string
