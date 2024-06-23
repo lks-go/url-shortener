@@ -6,9 +6,10 @@ import (
 )
 
 type Record struct {
-	UUID        string `json:"uuid"`
-	ShortURL    string `json:"short_url"`
-	OriginalURL string `json:"original_url"`
+	UUID        string `json:"uuid,omitempty"`
+	ShortURL    string `json:"short_url,omitempty"`
+	OriginalURL string `json:"original_url,omitempty"`
+	UserID      string `json:"user_id,omitempty"`
 }
 
 func NewProducer(fileName string) (*Producer, error) {
