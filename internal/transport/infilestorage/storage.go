@@ -127,6 +127,10 @@ func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
 	return nil
 }
 
+func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
+	return []service.UsersURL{}, nil
+}
+
 func (s *Storage) recordList(fileName string) ([]fs.Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -168,6 +168,32 @@ func (_m *URLStorage) UsersURLCodes(ctx context.Context, userID string) ([]strin
 	return r0, r1
 }
 
+// UsersURLs provides a mock function with given fields: ctx, userID
+func (_m *URLStorage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
+	ret := _m.Called(ctx, userID)
+
+	var r0 []service.UsersURL
+	var r1 error
+	if rf, ok := ret.Get(0).(func(context.Context, string) ([]service.UsersURL, error)); ok {
+		return rf(ctx, userID)
+	}
+	if rf, ok := ret.Get(0).(func(context.Context, string) []service.UsersURL); ok {
+		r0 = rf(ctx, userID)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]service.UsersURL)
+		}
+	}
+
+	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = rf(ctx, userID)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 type mockConstructorTestingTNewURLStorage interface {
 	mock.TestingT
 	Cleanup(func())

@@ -102,3 +102,7 @@ func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, e
 
 	return []string{}, nil
 }
+
+func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
+	return []service.UsersURL{}, nil
+}

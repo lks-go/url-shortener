@@ -177,3 +177,29 @@ func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
 
 	return nil
 }
+
+func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
+	q := `SELECT uc.code, s.url FROM user_codes uc LEFT JOIN shorten s on uc.code = s.code WHERE user_id = $1 AND s.url IS NOT NULL;`
+
+	rows, err := s.db.QueryContext(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make query: %w", err)
+	}
+	defer rows.Close()
+
+	urls := make([]service.UsersURL, 0)
+	for rows.Next() {
+		var code, url string
+		if err := rows.Scan(&code, &url); err != nil {
+			return nil, fmt.Errorf("failed to scan code and url: %w", err)
+		}
+
+		urls = append(urls, service.UsersURL{Code: code, OriginalURL: url})
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return urls, nil
+}
