@@ -16,6 +16,8 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
+// Service это интерфейс сервиса отвечающего за обратоку входящих http запросов
+//
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
 	MakeBatchShortURL(ctx context.Context, userID string, urls []service.URL) ([]service.URL, error)
@@ -24,10 +26,12 @@ type Service interface {
 	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
 }
 
+// Deleter это интерфейс сервиса отвечающего за получение запроса на удаление
 type Deleter interface {
 	Delete(ctx context.Context, userID string, codes []string) error
 }
 
+// Dependencies основные зависимости
 type Dependencies struct {
 	Service
 	Deleter
@@ -47,6 +51,7 @@ type Handlers struct {
 	deleter          Deleter
 }
 
+// ShortURL ручка для создания короткой ссылки
 func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	if http.MethodPost != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -87,6 +92,9 @@ func (h *Handlers) ShortURL(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Redirect запрашивает в сервисе оригинальный урл по короткой ссылке
+// и если такой урл есть, то возвращает клиенту http код ответа 307
+// и оригинальный урл в заголовке Location
 func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	if http.MethodGet != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -126,6 +134,13 @@ func (h *Handlers) Redirect(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+// ShortenBatchURL возвращает короткие ссылки пачку урлов
+// тело запроса должно содержать массив объектов
+//
+//	Пример:
+//	 [
+//			{"correlation_id": "example_id", "original_url": "https://ya.ru"}
+//	 ]
 func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
 	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
@@ -186,6 +201,7 @@ func (h *Handlers) ShortenBatchURL(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// ShortenURL создает короткую ссылку для урла
 func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 	if http.MethodPost != req.Method {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -245,6 +261,7 @@ func (h *Handlers) ShortenURL(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// UsersURLs возращает списко ссылок, добавленных для пользователя
 func (h *Handlers) UsersURLs(w http.ResponseWriter, req *http.Request) {
 	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
@@ -308,6 +325,9 @@ func (h *Handlers) shortenURLResponse(code string) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+// Delete принимает запрос на удаление уролов
+// в теле запроса передается список кодов коротких ссылок
+// хендлер не дожидается фактического удаления урлов и возвращает http код 202
 func (h *Handlers) Delete(w http.ResponseWriter, req *http.Request) {
 	userID, ok := req.Header["User-Id"]
 	if !ok || len(userID) == 0 {
