@@ -8,6 +8,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// WithCompressor compresses content when gets header Content-Encoding: gzip from the client
 func WithCompressor(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		ow := w
@@ -42,6 +43,7 @@ func WithCompressor(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// WithRequestLogger logs http requests data
 func WithRequestLogger(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -78,12 +80,14 @@ type loggingResponseWriter struct {
 	responseData *responseData
 }
 
+// Write is a wrapper of http.ResponseWriter Write()
 func (r *loggingResponseWriter) Write(b []byte) (int, error) {
 	size, err := r.ResponseWriter.Write(b)
 	r.responseData.size += size // захватываем размер
 	return size, err
 }
 
+// WriteHeader is a wrapper of http.ResponseWriter WriteHeader()
 func (r *loggingResponseWriter) WriteHeader(statusCode int) {
 	r.ResponseWriter.WriteHeader(statusCode)
 	r.responseData.status = statusCode // захватываем код статуса

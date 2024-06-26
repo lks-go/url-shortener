@@ -18,19 +18,23 @@ func newCompressWriter(w http.ResponseWriter) *compressWriter {
 	}
 }
 
+// Header is a wrapper of http.ResponseWriter Header()
 func (c *compressWriter) Header() http.Header {
 	return c.w.Header()
 }
 
+// Write is a wrapper of gzip.NewWriter Write()
 func (c *compressWriter) Write(p []byte) (int, error) {
 	return c.zw.Write(p)
 }
 
+// WriteHeader is a wrapper of http.ResponseWriter WriteHeader()
 func (c *compressWriter) WriteHeader(statusCode int) {
 	c.w.Header().Set("Content-Encoding", "gzip")
 	c.w.WriteHeader(statusCode)
 }
 
+// Close is a wrapper of gzip.NewWriter Close()
 func (c *compressWriter) Close() error {
 	return c.zw.Close()
 }
@@ -52,10 +56,12 @@ func newCompressReader(r io.ReadCloser) (*compressReader, error) {
 	}, nil
 }
 
+// Read is a wrapper of gzip.NewWriter Read()
 func (c *compressReader) Read(p []byte) (n int, err error) {
 	return c.zr.Read(p)
 }
 
+// Close is a wrapper of gzip.NewWriter Read()
 func (c *compressReader) Close() error {
 	if err := c.r.Close(); err != nil {
 		return err

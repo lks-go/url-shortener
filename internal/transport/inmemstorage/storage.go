@@ -9,7 +9,7 @@ import (
 )
 
 // MustNew returns instance of Storage
-// if an errors appears then panic happens
+// if an errors occurs then panic happens
 func MustNew(memStoreShortenURLs map[string]string) *Storage {
 	s, err := New(memStoreShortenURLs)
 	if err != nil {

@@ -16,6 +16,8 @@ const (
 	cookieExpires = time.Hour * 24 * 30
 )
 
+// WithAuth checks user's cookie and jwt
+// if cookie is empty generates new jwt and set new cooker to headers
 func WithAuth(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		var userID string
@@ -78,6 +80,7 @@ func WithAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+// Claims embeds jwt.RegisteredClaims
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID string
@@ -88,6 +91,7 @@ const (
 	secretKey = "secret"
 )
 
+// BuildNewJWTToken builds new jwt to userID
 func BuildNewJWTToken(userID string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -104,11 +108,13 @@ func BuildNewJWTToken(userID string) (string, error) {
 	return tokenString, nil
 }
 
+// Token errors
 var (
 	ErrInvalidToken = errors.New("invalid token")
 	ErrTokenExpired = errors.New("token expired")
 )
 
+// ParseJWTToken validates jwt
 func ParseJWTToken(token string) (*Claims, error) {
 	claims := Claims{}
 	parsedToken, err := jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (interface{}, error) {
