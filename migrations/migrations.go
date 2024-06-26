@@ -5,6 +5,7 @@ import (
 	"fmt"
 )
 
+// RunUp up migration to the last version
 func RunUp(db *sql.DB) error {
 
 	if err := createTableShorten(db); err != nil {
