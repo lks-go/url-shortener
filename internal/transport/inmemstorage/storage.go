@@ -8,6 +8,8 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
+// MustNew returns instance of Storage
+// if an errors appears then panic happens
 func MustNew(memStoreShortenURLs map[string]string) *Storage {
 	s, err := New(memStoreShortenURLs)
 	if err != nil {
@@ -17,6 +19,7 @@ func MustNew(memStoreShortenURLs map[string]string) *Storage {
 	return s
 }
 
+// New constructor of new instance of Storage
 func New(memStoreShortenURLs map[string]string) (*Storage, error) {
 
 	if memStoreShortenURLs == nil {
@@ -29,11 +32,13 @@ func New(memStoreShortenURLs map[string]string) (*Storage, error) {
 	}, nil
 }
 
+// Storage the main struct implementing the storage
 type Storage struct {
 	shortenURLs map[string]string
 	mu          sync.RWMutex
 }
 
+// Save stores a new URL to file storage
 func (s *Storage) Save(ctx context.Context, url, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -43,6 +48,7 @@ func (s *Storage) Save(ctx context.Context, url, id string) error {
 	return nil
 }
 
+// SaveBatch stores array of URLs to file storage
 func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -54,6 +60,7 @@ func (s *Storage) SaveBatch(ctx context.Context, url []service.URL) error {
 	return nil
 }
 
+// Exists checks if URL already exists
 func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 
 	s.mu.RLock()
@@ -64,6 +71,7 @@ func (s *Storage) Exists(ctx context.Context, id string) (bool, error) {
 	return ok, nil
 }
 
+// URL returns URL by code
 func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -76,6 +84,7 @@ func (s *Storage) URL(ctx context.Context, id string) (string, error) {
 	return url, nil
 }
 
+// CodeByURL returns URLs code by URL
 func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -89,20 +98,24 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	return "", service.ErrNotFound
 }
 
+// DeleteURLs removes URLs from storage by codes
 func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
 	return nil
 }
 
+// SaveUsersCode stores owner and code of URL to file storage
 func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
 
 	return nil
 }
 
+// UsersURLCodes returns codes of user's URLs
 func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
 
 	return []string{}, nil
 }
 
+// UsersURLs returns list of user's URLs
 func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
 	return []service.UsersURL{}, nil
 }

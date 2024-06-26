@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// Default settings
 const (
 	DefaultServerAddress = ":8080"
 	DefaultBaseURL       = "http://localhost:8080"

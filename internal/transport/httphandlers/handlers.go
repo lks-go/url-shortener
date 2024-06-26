@@ -37,6 +37,7 @@ type Dependencies struct {
 	Deleter
 }
 
+// New is a constructor of *Handlers
 func New(basePath string, deps Dependencies) *Handlers {
 	return &Handlers{
 		redirectBasePath: strings.TrimRight(basePath, "/"),
@@ -45,6 +46,7 @@ func New(basePath string, deps Dependencies) *Handlers {
 	}
 }
 
+// Handlers is a main structure of httphandlers
 type Handlers struct {
 	redirectBasePath string
 	service          Service
