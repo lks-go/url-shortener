@@ -1,3 +1,4 @@
+// The main service
 package service
 
 import (
@@ -6,17 +7,21 @@ import (
 	"fmt"
 )
 
+// URL a main domain struct of URL
 type URL struct {
 	СorrelationID string
 	OriginalURL   string
 	Code          string
 }
 
+// UsersURL a domain struct describes which shorten code belongs to URL
 type UsersURL struct {
 	Code        string
 	OriginalURL string
 }
 
+// URLStorage is an interface of URL storage
+//
 //go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=URLStorage
 type URLStorage interface {
 	Save(ctx context.Context, code, url string) error
@@ -30,15 +35,19 @@ type URLStorage interface {
 	UsersURLs(ctx context.Context, userID string) ([]UsersURL, error)
 }
 
+// Config is a service config
 type Config struct {
 	IDSize int
 }
 
+// Dependencies is a struct contains main service dependencies
 type Dependencies struct {
 	Storage      URLStorage
 	RandomString func(size int) string
 }
 
+// New is a service constructor
+// to declare Service use only the constructor recommended
 func New(cfg Config, deps Dependencies) *Service {
 	return &Service{
 		cfg:          cfg,
@@ -47,12 +56,16 @@ func New(cfg Config, deps Dependencies) *Service {
 	}
 }
 
+// Service is a main service structure
 type Service struct {
 	cfg          Config
 	storage      URLStorage
 	randomString func(size int) string
 }
 
+// MakeShortURL generates code and save generated code with URL
+// returns generated code
+// if code or URL already exist returns the error ErrURLAlreadyExists
 func (s *Service) MakeShortURL(ctx context.Context, userID, url string) (string, error) {
 	code, err := s.generateShort(ctx)
 	if err != nil {
@@ -80,6 +93,7 @@ func (s *Service) MakeShortURL(ctx context.Context, userID, url string) (string,
 	return code, nil
 }
 
+// URL find and return URL by id
 func (s *Service) URL(ctx context.Context, id string) (string, error) {
 	url, err := s.storage.URL(ctx, id)
 	if err != nil {
@@ -89,6 +103,7 @@ func (s *Service) URL(ctx context.Context, id string) (string, error) {
 	return url, nil
 }
 
+// MakeBatchShortURL generates codes for batch of URLs
 func (s *Service) MakeBatchShortURL(ctx context.Context, userID string, urls []URL) ([]URL, error) {
 
 	for i := range urls {
@@ -113,6 +128,7 @@ func (s *Service) MakeBatchShortURL(ctx context.Context, userID string, urls []U
 	return urls, nil
 }
 
+// UsersURLs reruns list of URLs added by user
 func (s *Service) UsersURLs(ctx context.Context, userID string) ([]UsersURL, error) {
 	userURLs, err := s.storage.UsersURLs(ctx, userID)
 	if err != nil {

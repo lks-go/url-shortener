@@ -20,6 +20,7 @@ import (
 	"github.com/lks-go/url-shortener/migrations"
 )
 
+// App is a struct of the application, contains all necessary dependencies
 type App struct {
 	Config Config
 }
@@ -29,6 +30,7 @@ var (
 	pool    *sql.DB
 )
 
+// Run builds and starts the application
 func (a *App) Run() error {
 
 	switch {

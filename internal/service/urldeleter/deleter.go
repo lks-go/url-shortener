@@ -1,3 +1,4 @@
+// Package of service for removing URLs
 package urldeleter
 
 import (
@@ -10,16 +11,20 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
+// Config service config
 type Config struct {
 	StoppingTimeout  time.Duration
 	MaxBatchSize     int
 	BatchWaitingTime time.Duration
 }
 
+// Deps contains necessary service dependencies
 type Deps struct {
 	Storage service.URLStorage
 }
 
+// NewDeleter service constructor
+// use only the constructor to declare URLDeleter otherwise service will not work correctly
 func NewDeleter(cfg Config, d Deps) *URLDeleter {
 
 	if cfg.StoppingTimeout <= 0 {
@@ -42,6 +47,7 @@ func NewDeleter(cfg Config, d Deps) *URLDeleter {
 	}
 }
 
+// URLDeleter service struct
 type URLDeleter struct {
 	cfg     Config
 	storage service.URLStorage
@@ -49,6 +55,7 @@ type URLDeleter struct {
 	stopped chan struct{}
 }
 
+// Start starts the worker
 func (d *URLDeleter) Start() {
 	listToDelete := make([]string, 0, d.cfg.MaxBatchSize)
 	send, sendAndExit := false, false
@@ -94,12 +101,14 @@ func (d *URLDeleter) Start() {
 	}()
 }
 
+// Stop stops the service
 func (d *URLDeleter) Stop() {
 	close(d.stopped)
 	time.Sleep(d.cfg.StoppingTimeout)
 	close(d.queue)
 }
 
+// Delete get users urls codes to delete
 func (d *URLDeleter) Delete(ctx context.Context, userID string, codes []string) error {
 	select {
 	case <-d.stopped:

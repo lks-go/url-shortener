@@ -15,6 +15,7 @@ const (
 	DefaultFSPath        = "/tmp/short-url-db.json"
 )
 
+// NewConfig builds and returns application config
 func NewConfig() Config {
 
 	cfg := Config{}
@@ -43,6 +44,7 @@ func NewConfig() Config {
 	return cfg
 }
 
+// Config contains application config
 type Config struct {
 	NetAddress       NetAddress
 	RedirectBasePath string
@@ -50,11 +52,13 @@ type Config struct {
 	DatabaseDSN      string
 }
 
+// NetAddress contains net config
 type NetAddress struct {
 	Host string
 	Port int
 }
 
+// String builds and returns address which the application listens
 func (a *NetAddress) String() string {
 
 	if a.Port == 0 {
@@ -64,6 +68,7 @@ func (a *NetAddress) String() string {
 	return a.Host + ":" + strconv.Itoa(a.Port)
 }
 
+// Set pareses address and sets Host and Port
 func (a *NetAddress) Set(s string) error {
 	addr := strings.Split(s, ":")
 

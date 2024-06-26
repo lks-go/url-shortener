@@ -2,6 +2,7 @@ package service
 
 import "errors"
 
+// Service domain errors
 var (
 	ErrNotFound            = errors.New("not found")
 	ErrRecordAlreadyExists = errors.New("record already exists")

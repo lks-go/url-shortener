@@ -11,16 +11,19 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
+// New is Storage constructor
 func New(db *sql.DB) *Storage {
 	return &Storage{
 		db: db,
 	}
 }
 
+// Storage is storage main struct
 type Storage struct {
 	db *sql.DB
 }
 
+// SaveBatch accepts array of service.URL and saves them in one transaction
 func (s *Storage) SaveBatch(ctx context.Context, urls []service.URL) error {
 
 	tx, err := s.db.Begin()
@@ -48,6 +51,7 @@ func (s *Storage) SaveBatch(ctx context.Context, urls []service.URL) error {
 	return nil
 }
 
+// Save saves code with URL
 func (s *Storage) Save(ctx context.Context, code, url string) error {
 	q := `INSERT INTO shorten (code, url) VALUES($1, $2)`
 
@@ -65,6 +69,7 @@ func (s *Storage) Save(ctx context.Context, code, url string) error {
 	return nil
 }
 
+// Exists seek code and returns true if it exists otherwise false
 func (s *Storage) Exists(ctx context.Context, code string) (bool, error) {
 	q := "SELECT url FROM shorten WHERE code = $1"
 
@@ -84,6 +89,7 @@ func (s *Storage) Exists(ctx context.Context, code string) (bool, error) {
 	return true, nil
 }
 
+// URL returns URL by code
 func (s *Storage) URL(ctx context.Context, code string) (string, error) {
 	q := "SELECT url, deleted FROM shorten WHERE code = $1"
 
@@ -108,6 +114,7 @@ func (s *Storage) URL(ctx context.Context, code string) (string, error) {
 	return url, nil
 }
 
+// CodeByURL returns code by URL
 func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	q := "SELECT code FROM shorten WHERE url = $1"
 
@@ -124,6 +131,7 @@ func (s *Storage) CodeByURL(ctx context.Context, url string) (string, error) {
 	return code, nil
 }
 
+// SaveUsersCode saves codes belong to the user
 func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string) error {
 	q := `INSERT INTO USER_CODES (USER_ID, CODE) VALUES ($1, $2);`
 
@@ -141,6 +149,7 @@ func (s *Storage) SaveUsersCode(ctx context.Context, userID string, code string)
 	return nil
 }
 
+// UsersURLCodes return all users URL codes
 func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, error) {
 	q := `SELECT CODE FROM user_codes WHERE USER_ID = $1;`
 
@@ -167,6 +176,7 @@ func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, e
 	return codes, nil
 }
 
+// DeleteURLs remove list of URLs from DB
 func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
 	q := `UPDATE shorten SET deleted = true WHERE code = ANY($1);`
 
@@ -178,6 +188,7 @@ func (s *Storage) DeleteURLs(ctx context.Context, codes []string) error {
 	return nil
 }
 
+// UsersURLs returns users list of service.UsersURL
 func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
 	q := `SELECT uc.code, s.url FROM user_codes uc LEFT JOIN shorten s on uc.code = s.code WHERE user_id = $1 AND s.url IS NOT NULL;`
 
