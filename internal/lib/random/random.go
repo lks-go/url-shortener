@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+// NewString returns random string of the specified size
+// the random string consists of ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 letters
 func NewString(size int) string {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 

@@ -2,6 +2,8 @@ package main
 
 import (
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 
 	"github.com/lks-go/url-shortener/internal/app"
 )
@@ -15,8 +17,14 @@ func main() {
 	log.Println("Starting server")
 	log.Printf("Listen and serve on %s", a.Config.NetAddress.String())
 	log.Printf("Base path for short URL '%s'", a.Config.RedirectBasePath)
+
+	go func() {
+		err := http.ListenAndServe(":8082", nil)
+		log.Fatalf("failed to run profiler http server: %s", err)
+	}()
+
 	if err := a.Run(); err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to run application: %s", err)
 	}
 
 }
