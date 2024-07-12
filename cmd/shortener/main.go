@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	a := app.App{
 		Config: app.NewConfig(),
 	}
@@ -26,5 +25,4 @@ func main() {
 	if err := a.Run(); err != nil {
 		log.Fatalf("failed to run application: %s", err)
 	}
-
 }

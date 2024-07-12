@@ -7,3 +7,11 @@ run:
 	-b "http://localhost:7070" \
 	-d "postgresql://admin:admin@localhost:5432/url_shortener?sslmode=disable"
 
+lint:
+	go vet ./...
+
+#go vet ./foo ./internal/...
+
+custom_lint:
+	go build -o ./bin/staticlint ./cmd/staticlint/main.go && ./bin/staticlint ./...
+
