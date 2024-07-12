@@ -15,3 +15,8 @@ lint:
 custom_lint:
 	go build -o ./bin/staticlint ./cmd/staticlint/main.go && ./bin/staticlint ./...
 
+install_doc:
+	go install -v golang.org/x/tools/cmd/godoc@latest
+
+doc:
+	godoc -http=:8088

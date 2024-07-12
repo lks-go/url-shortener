@@ -1,3 +1,19 @@
+// Пакет предназначен для запуска статического анализа кода
+//
+// Cодержит различные анализаторы:
+//
+// 1. анализаторы стандартной библиотеки go/analysis:
+//   - sortslice.Analyzer
+//   - appends.Analyzer
+//   - printf.Analyzer
+//   - shadow.Analyzer
+//   - structtag.Analyzer
+//
+// 2. кастомный анализаторо MainOSExitCheckAnalyzer
+//
+// 3. анализаторы пакета honnef.co/go/tools:
+//   - ST1000 для проверки стиля кода
+//   - S1001 проверка копирования переменной в цикле
 package main
 
 import (
@@ -53,6 +69,7 @@ func main() {
 	)
 }
 
+// MainOSExitCheckAnalyzer анализатор прямого вызова функции os.Exit в main файле
 var MainOSExitCheckAnalyzer = &analysis.Analyzer{
 	Name: "mainosexitcheck",
 	Doc:  "check for call of os.Exit in main",
