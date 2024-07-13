@@ -8,7 +8,17 @@ import (
 	"github.com/lks-go/url-shortener/internal/app"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
+	log.Printf("Build version: %s\n", buildVersion)
+	log.Printf("Build date: %s\n", buildDate)
+	log.Printf("Build commit: %s\n", buildCommit)
+
 	a := app.App{
 		Config: app.NewConfig(),
 	}
