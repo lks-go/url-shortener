@@ -12,9 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/lks-go/url-shortener/internal/transport"
+	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers/mocks"
+	"github.com/lks-go/url-shortener/internal/transport/middleware"
 )
 
 func TestHandlers_Redirect(t *testing.T) {
@@ -62,7 +63,7 @@ func TestHandlers_Redirect(t *testing.T) {
 			},
 			callMocks: func() {
 				serviceMock.On("URL", mock.Anything, "123457").
-					Return("", transport.ErrNotFound).Once()
+					Return("", service.ErrNotFound).Once()
 			},
 		},
 		{
@@ -134,7 +135,7 @@ func TestHandlers_ShortURL(t *testing.T) {
 			wantHTTPCode: http.StatusCreated,
 			wantResp:     fmt.Sprintf("%s/%s", basePath, id),
 			callMocks: func() {
-				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return(id, nil).Once()
+				serviceMock.On("MakeShortURL", mock.Anything, mock.Anything, "https://ya.ru").Return(id, nil).Once()
 			},
 		},
 		{
@@ -155,7 +156,7 @@ func TestHandlers_ShortURL(t *testing.T) {
 			wantResp:     http.StatusText(http.StatusInternalServerError) + "\n",
 			callMocks: func() {
 				err := errors.New("any error")
-				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return("", err).Once()
+				serviceMock.On("MakeShortURL", mock.Anything, mock.Anything, "https://ya.ru").Return("", err).Once()
 			},
 		},
 	}
@@ -166,7 +167,8 @@ func TestHandlers_ShortURL(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tt.method, tt.target, tt.body)
 
-			h.ShortURL(w, r)
+			hh := middleware.WithAuth(http.HandlerFunc(h.ShortURL))
+			hh.ServeHTTP(w, r)
 
 			assert.Equal(t, tt.wantResp, w.Body.String())
 			assert.Equal(t, tt.wantHTTPCode, w.Code)
@@ -202,7 +204,7 @@ func TestHandlers_ShortenURL(t *testing.T) {
 			wantHTTPCode: http.StatusCreated,
 			wantResp:     fmt.Sprintf("{\"result\":\"%s/%s\"}\n", basePath, id),
 			callMocks: func() {
-				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return(id, nil).Once()
+				serviceMock.On("MakeShortURL", mock.Anything, mock.Anything, "https://ya.ru").Return(id, nil).Once()
 			},
 		},
 		{
@@ -223,7 +225,7 @@ func TestHandlers_ShortenURL(t *testing.T) {
 			wantResp:     http.StatusText(http.StatusInternalServerError) + "\n",
 			callMocks: func() {
 				err := errors.New("any error")
-				serviceMock.On("MakeShortURL", mock.Anything, "https://ya.ru").Return("", err).Once()
+				serviceMock.On("MakeShortURL", mock.Anything, mock.Anything, "https://ya.ru").Return("", err).Once()
 			},
 		},
 	}
@@ -234,7 +236,8 @@ func TestHandlers_ShortenURL(t *testing.T) {
 			w := httptest.NewRecorder()
 			r := httptest.NewRequest(tt.method, tt.target, tt.body)
 
-			h.ShortenURL(w, r)
+			hh := middleware.WithAuth(http.HandlerFunc(h.ShortenURL))
+			hh.ServeHTTP(w, r)
 
 			assert.Equal(t, tt.wantResp, w.Body.String())
 			assert.Equal(t, tt.wantHTTPCode, w.Code)

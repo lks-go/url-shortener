@@ -9,18 +9,21 @@ import (
 	"strings"
 )
 
+// Default settings
 const (
 	DefaultServerAddress = ":8080"
 	DefaultBaseURL       = "http://localhost:8080"
 	DefaultFSPath        = "/tmp/short-url-db.json"
 )
 
+// NewConfig builds and returns application config
 func NewConfig() Config {
 
 	cfg := Config{}
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
 	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
+	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
@@ -35,20 +38,28 @@ func NewConfig() Config {
 		cfg.FileStoragePath = fsPath
 	}
 
+	if dbConnString, ok := os.LookupEnv("DATABASE_DSN"); ok {
+		cfg.DatabaseDSN = dbConnString
+	}
+
 	return cfg
 }
 
+// Config contains application config
 type Config struct {
 	NetAddress       NetAddress
 	RedirectBasePath string
 	FileStoragePath  string
+	DatabaseDSN      string
 }
 
+// NetAddress contains net config
 type NetAddress struct {
 	Host string
 	Port int
 }
 
+// String builds and returns address which the application listens
 func (a *NetAddress) String() string {
 
 	if a.Port == 0 {
@@ -58,6 +69,7 @@ func (a *NetAddress) String() string {
 	return a.Host + ":" + strconv.Itoa(a.Port)
 }
 
+// Set pareses address and sets Host and Port
 func (a *NetAddress) Set(s string) error {
 	addr := strings.Split(s, ":")
 
