@@ -22,3 +22,7 @@ bin
 # IDEs directories
 .idea
 .vscode
+
+# certs
+cert.pem
+key.pem

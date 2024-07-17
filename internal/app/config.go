@@ -24,6 +24,7 @@ func NewConfig() Config {
 	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "")
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
@@ -42,6 +43,10 @@ func NewConfig() Config {
 		cfg.DatabaseDSN = dbConnString
 	}
 
+	if enableHTTPS, ok := os.LookupEnv("ENABLE_HTTPS"); ok {
+		cfg.EnableHTTPS = enableHTTPS == "true" || enableHTTPS == "1"
+	}
+
 	return cfg
 }
 
@@ -51,6 +56,7 @@ type Config struct {
 	RedirectBasePath string
 	FileStoragePath  string
 	DatabaseDSN      string
+	EnableHTTPS      bool
 }
 
 // NetAddress contains net config
