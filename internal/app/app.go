@@ -1,9 +1,21 @@
 package app
 
 import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"database/sql"
+	"encoding/pem"
 	"fmt"
+	"log"
+	"math/big"
+	"net"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chiMw "github.com/go-chi/chi/v5/middleware"
@@ -20,26 +32,36 @@ import (
 	"github.com/lks-go/url-shortener/migrations"
 )
 
-// App is a struct of the application, contains all necessary dependencies
-type App struct {
-	Config Config
+// Service an common interface for app services
+type Service interface {
+	Start()
+	Stop()
 }
 
-var (
-	storage service.URLStorage
-	pool    *sql.DB
-)
+// App is a struct of the application, contains all necessary dependencies
+type App struct {
+	Config         Config
+	handler        http.Handler
+	serviceDeleter Service
 
-// Run builds and starts the application
-func (a *App) Run() error {
+	pool *sql.DB
+}
+
+// Init builds the application
+func (a *App) Init() error {
+
+	var (
+		storage service.URLStorage
+		pool    *sql.DB
+		err     error
+	)
 
 	switch {
 	case a.Config.DatabaseDSN != "":
-		pool, err := setupDB(a.Config.DatabaseDSN)
+		pool, err = setupDB(a.Config.DatabaseDSN)
 		if err != nil {
 			return fmt.Errorf("failed to setup database: %w", err)
 		}
-		defer pool.Close()
 
 		if err := migrations.RunUp(pool); err != nil {
 			return fmt.Errorf("failed to run migrations: %w", err)
@@ -58,9 +80,6 @@ func (a *App) Run() error {
 	})
 
 	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
-	d.Start()
-	defer d.Stop()
-
 	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s, Deleter: d})
 
 	r := chi.NewRouter()
@@ -86,7 +105,72 @@ func (a *App) Run() error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	return http.ListenAndServe(a.Config.NetAddress.String(), r)
+	a.pool = pool
+	a.handler = r
+	a.serviceDeleter = d
+
+	return nil
+}
+
+// StartHTTPServer starts the HTTP server
+func (a *App) StartHTTPServer(ctx context.Context) error {
+	idleConnsClosed := make(chan struct{})
+
+	srv := http.Server{
+		Addr:    a.Config.NetAddress.String(),
+		Handler: a.handler,
+	}
+
+	go func() {
+		<-ctx.Done()
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Printf("failed to shutdown server: %s\n", err)
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	if a.Config.EnableHTTPS {
+		certFile, keyFile, err := setupCert()
+		if err != nil {
+			return fmt.Errorf("failed got setup cert: %w", err)
+		}
+
+		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+			return fmt.Errorf("filed to listern and serve TLS: %w", err)
+		}
+
+		<-idleConnsClosed
+
+		return nil
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		return fmt.Errorf("filed to listern and serve: %w", err)
+	}
+
+	<-idleConnsClosed
+
+	return nil
+}
+
+// StartDeleter starts deleter service
+func (a *App) StartDeleter(ctx context.Context) error {
+	go func() {
+		<-ctx.Done()
+		a.serviceDeleter.Stop()
+	}()
+
+	a.serviceDeleter.Start()
+
+	return nil
+}
+
+// Exit finishes the app by closing inited db connections and etc
+func (a *App) Exit() {
+	if err := a.pool.Close(); err != nil {
+		log.Printf("failed to close pool: %s", err)
+	}
 }
 
 func setupDB(dsn string) (*sql.DB, error) {
@@ -100,4 +184,68 @@ func setupDB(dsn string) (*sql.DB, error) {
 	}
 
 	return pool, nil
+}
+
+func setupCert() (certFile string, keyFile string, err error) {
+
+	certPEMFileName := "cert.pem"
+	keyPEMFileName := "key.pem"
+
+	cert := &x509.Certificate{
+		SerialNumber: big.NewInt(1658),
+		Subject: pkix.Name{
+			Organization: []string{"Yandex.Praktikum"},
+			Country:      []string{"RU"},
+		},
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().AddDate(10, 0, 0),
+		SubjectKeyId: []byte{1, 2, 3, 4, 6},
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate rsa key: %w", err)
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create certificate: %w", err)
+	}
+
+	var certPEMBuf bytes.Buffer
+	pem.Encode(&certPEMBuf, &pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: certBytes,
+	})
+
+	certPEMFile, err := os.Create(certPEMFileName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create cert.pem: %w", err)
+	}
+
+	_, err = certPEMFile.Write(certPEMBuf.Bytes())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to write cert.pem: %w", err)
+	}
+
+	var privateKeyPEMBuf bytes.Buffer
+	pem.Encode(&privateKeyPEMBuf, &pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
+	})
+
+	privateKeyPEMFile, err := os.Create(keyPEMFileName)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create key.pem: %w", err)
+	}
+
+	_, err = privateKeyPEMFile.Write(privateKeyPEMBuf.Bytes())
+	if err != nil {
+		return "", "", fmt.Errorf("failed to write key.pem: %w", err)
+	}
+
+	return certPEMFileName, keyPEMFileName, nil
 }
