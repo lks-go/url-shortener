@@ -32,6 +32,7 @@ import (
 	"github.com/lks-go/url-shortener/migrations"
 )
 
+// Service an common interface for app services
 type Service interface {
 	Start()
 	Stop()
@@ -153,6 +154,7 @@ func (a *App) StartHTTPServer(ctx context.Context) error {
 	return nil
 }
 
+// StartDeleter starts deleter service
 func (a *App) StartDeleter(ctx context.Context) error {
 	go func() {
 		<-ctx.Done()
@@ -164,6 +166,7 @@ func (a *App) StartDeleter(ctx context.Context) error {
 	return nil
 }
 
+// Exit finishes the app by closing inited db connections and etc
 func (a *App) Exit() {
 	if err := a.pool.Close(); err != nil {
 		log.Printf("failed to close pool: %s", err)
