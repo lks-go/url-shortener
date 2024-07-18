@@ -19,8 +19,13 @@ func main() {
 	log.Printf("Build date: %s\n", buildDate)
 	log.Printf("Build commit: %s\n", buildCommit)
 
+	cfg, err := app.NewConfig()
+	if err != nil {
+		log.Fatalf("failed to get new config: %s", err)
+	}
+
 	a := app.App{
-		Config: app.NewConfig(),
+		Config: cfg,
 	}
 
 	log.Println("Starting server")
