@@ -1,9 +1,16 @@
 package main
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
+	"os/signal"
+	"syscall"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/lks-go/url-shortener/internal/app"
 )
@@ -37,7 +44,36 @@ func main() {
 		log.Fatalf("failed to run profiler http server: %s", err)
 	}()
 
-	if err := a.Run(); err != nil {
-		log.Fatalf("failed to run application: %s", err)
+	if err := a.Init(); err != nil {
+		log.Fatalf("failed to init application: %s", err)
 	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
+	defer stop()
+
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		if err := a.StartHTTPServer(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("HTTP server error: %w", err)
+		}
+
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := a.StartDeleter(ctx); err != nil {
+			return fmt.Errorf("service deleter error: %w", err)
+		}
+
+		return nil
+	})
+
+	if err := g.Wait(); err != nil {
+		log.Fatalf("group error: %s", err)
+	}
+
+	a.Exit()
+
+	log.Println("Application successfully stopped")
 }

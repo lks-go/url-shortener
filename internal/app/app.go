@@ -2,6 +2,7 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -9,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/pem"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -30,26 +32,35 @@ import (
 	"github.com/lks-go/url-shortener/migrations"
 )
 
-// App is a struct of the application, contains all necessary dependencies
-type App struct {
-	Config Config
+type Service interface {
+	Start()
+	Stop()
 }
 
-var (
-	storage service.URLStorage
-	pool    *sql.DB
-)
+// App is a struct of the application, contains all necessary dependencies
+type App struct {
+	Config         Config
+	handler        http.Handler
+	serviceDeleter Service
 
-// Run builds and starts the application
-func (a *App) Run() error {
+	pool *sql.DB
+}
+
+// Init builds the application
+func (a *App) Init() error {
+
+	var (
+		storage service.URLStorage
+		pool    *sql.DB
+		err     error
+	)
 
 	switch {
 	case a.Config.DatabaseDSN != "":
-		pool, err := setupDB(a.Config.DatabaseDSN)
+		pool, err = setupDB(a.Config.DatabaseDSN)
 		if err != nil {
 			return fmt.Errorf("failed to setup database: %w", err)
 		}
-		defer pool.Close()
 
 		if err := migrations.RunUp(pool); err != nil {
 			return fmt.Errorf("failed to run migrations: %w", err)
@@ -68,9 +79,6 @@ func (a *App) Run() error {
 	})
 
 	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
-	d.Start()
-	defer d.Stop()
-
 	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s, Deleter: d})
 
 	r := chi.NewRouter()
@@ -96,20 +104,70 @@ func (a *App) Run() error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	return listenAndServe(a, r)
+	a.pool = pool
+	a.handler = r
+	a.serviceDeleter = d
+
+	return nil
 }
 
-func listenAndServe(a *App, r http.Handler) error {
+// StartHTTPServer starts the HTTP server
+func (a *App) StartHTTPServer(ctx context.Context) error {
+	idleConnsClosed := make(chan struct{})
+
+	srv := http.Server{
+		Addr:    a.Config.NetAddress.String(),
+		Handler: a.handler,
+	}
+
+	go func() {
+		<-ctx.Done()
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Printf("failed to shutdown server: %s\n", err)
+		}
+
+		close(idleConnsClosed)
+	}()
+
 	if a.Config.EnableHTTPS {
 		certFile, keyFile, err := setupCert()
 		if err != nil {
 			return fmt.Errorf("failed got setup cert: %w", err)
 		}
 
-		return http.ListenAndServeTLS(a.Config.NetAddress.String(), certFile, keyFile, r)
+		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+			return fmt.Errorf("filed to listern and serve TLS: %w", err)
+		}
+
+		<-idleConnsClosed
+
+		return nil
 	}
 
-	return http.ListenAndServe(a.Config.NetAddress.String(), r)
+	if err := srv.ListenAndServe(); err != nil {
+		return fmt.Errorf("filed to listern and serve: %w", err)
+	}
+
+	<-idleConnsClosed
+
+	return nil
+}
+
+func (a *App) StartDeleter(ctx context.Context) error {
+	go func() {
+		<-ctx.Done()
+		a.serviceDeleter.Stop()
+	}()
+
+	a.serviceDeleter.Start()
+
+	return nil
+}
+
+func (a *App) Exit() {
+	if err := a.pool.Close(); err != nil {
+		log.Printf("failed to close pool: %s", err)
+	}
 }
 
 func setupDB(dsn string) (*sql.DB, error) {
