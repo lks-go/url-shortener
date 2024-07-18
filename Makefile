@@ -6,7 +6,8 @@ run:
 	-a :7070 \
 	-b "http://localhost:7070" \
 	-d "postgresql://admin:admin@localhost:5432/url_shortener?sslmode=disable" \
-	-s
+	-s \
+	-c "config.json"
 
 
 lint:

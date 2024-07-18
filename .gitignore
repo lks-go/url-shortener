@@ -26,3 +26,4 @@ bin
 # certs
 cert.pem
 key.pem
+config.json

@@ -1,9 +1,11 @@
 package app
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -17,14 +19,17 @@ const (
 )
 
 // NewConfig builds and returns application config
-func NewConfig() Config {
-
+func NewConfig() (Config, error) {
 	cfg := Config{}
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
 	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
-	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "")
+	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
+
+	var configFile string
+	flag.StringVar(&configFile, "c", "", "Config json file path")
+
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
@@ -47,7 +52,16 @@ func NewConfig() Config {
 		cfg.EnableHTTPS = enableHTTPS == "true" || enableHTTPS == "1"
 	}
 
-	return cfg
+	if configFile != "" {
+		jsonCfg, err := parseJSONConfig(configFile)
+		if err != nil {
+			return Config{}, fmt.Errorf("failed to parse json config: %w", err)
+		}
+
+		mapJSONConfig(&cfg, jsonCfg)
+	}
+
+	return cfg, nil
 }
 
 // Config contains application config
@@ -92,4 +106,54 @@ func (a *NetAddress) Set(s string) error {
 	a.Port = p
 
 	return nil
+}
+
+type jsonConfig struct {
+	ServerSddress   string `json:"server_sddress"`
+	BaseURL         string `json:"base_url"`
+	FileStoragePath string `json:"file_storage_path"`
+	DatabaseDSN     string `json:"database_dsn"`
+	EnableHTTPS     bool   `json:"enable_https"`
+}
+
+func parseJSONConfig(file string) (*jsonConfig, error) {
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("filed to open file: %w", err)
+	}
+	defer f.Close()
+
+	b, err := io.ReadAll(f)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read bytes: %w", err)
+	}
+
+	cfg := jsonConfig{}
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return &cfg, nil
+}
+
+func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
+	if cfg.NetAddress.String() == "" {
+		cfg.NetAddress.Set(jsonCfg.ServerSddress)
+	}
+
+	if cfg.RedirectBasePath == "" {
+		cfg.RedirectBasePath = jsonCfg.BaseURL
+	}
+
+	if cfg.FileStoragePath == "" {
+		cfg.FileStoragePath = jsonCfg.FileStoragePath
+	}
+
+	if cfg.DatabaseDSN == "" {
+		cfg.DatabaseDSN = jsonCfg.DatabaseDSN
+	}
+
+	if !cfg.EnableHTTPS {
+		cfg.EnableHTTPS = jsonCfg.EnableHTTPS
+	}
 }
