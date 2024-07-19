@@ -1,26 +1,17 @@
 package app
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"crypto/x509/pkix"
 	"database/sql"
-	"encoding/pem"
 	"fmt"
 	"log"
-	"math/big"
-	"net"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	chiMw "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/lks-go/url-shortener/internal/lib/cert"
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/service/urldeleter"
@@ -49,7 +40,6 @@ type App struct {
 
 // Init builds the application
 func (a *App) Init() error {
-
 	var (
 		storage service.URLStorage
 		pool    *sql.DB
@@ -131,9 +121,17 @@ func (a *App) StartHTTPServer(ctx context.Context) error {
 	}()
 
 	if a.Config.EnableHTTPS {
-		certFile, keyFile, err := setupCert()
+		certFile := "cert.pem"
+		keyFile := "key.pem"
+
+		err := cert.New(cert.Config{
+			CertFileName: certFile,
+			KeyFileName:  keyFile,
+			Organization: []string{"Yandex.Praktikum"},
+			Country:      []string{"RU"},
+		})
 		if err != nil {
-			return fmt.Errorf("failed got setup cert: %w", err)
+			return fmt.Errorf("failed to get new cert: %w", err)
 		}
 
 		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
@@ -184,68 +182,4 @@ func setupDB(dsn string) (*sql.DB, error) {
 	}
 
 	return pool, nil
-}
-
-func setupCert() (certFile string, keyFile string, err error) {
-
-	certPEMFileName := "cert.pem"
-	keyPEMFileName := "key.pem"
-
-	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(1658),
-		Subject: pkix.Name{
-			Organization: []string{"Yandex.Praktikum"},
-			Country:      []string{"RU"},
-		},
-		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().AddDate(10, 0, 0),
-		SubjectKeyId: []byte{1, 2, 3, 4, 6},
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 4096)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to generate rsa key: %w", err)
-	}
-
-	certBytes, err := x509.CreateCertificate(rand.Reader, cert, cert, &privateKey.PublicKey, privateKey)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create certificate: %w", err)
-	}
-
-	var certPEMBuf bytes.Buffer
-	pem.Encode(&certPEMBuf, &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: certBytes,
-	})
-
-	certPEMFile, err := os.Create(certPEMFileName)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create cert.pem: %w", err)
-	}
-
-	_, err = certPEMFile.Write(certPEMBuf.Bytes())
-	if err != nil {
-		return "", "", fmt.Errorf("failed to write cert.pem: %w", err)
-	}
-
-	var privateKeyPEMBuf bytes.Buffer
-	pem.Encode(&privateKeyPEMBuf, &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-	})
-
-	privateKeyPEMFile, err := os.Create(keyPEMFileName)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to create key.pem: %w", err)
-	}
-
-	_, err = privateKeyPEMFile.Write(privateKeyPEMBuf.Bytes())
-	if err != nil {
-		return "", "", fmt.Errorf("failed to write key.pem: %w", err)
-	}
-
-	return certPEMFileName, keyPEMFileName, nil
 }

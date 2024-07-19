@@ -81,7 +81,6 @@ type NetAddress struct {
 
 // String builds and returns address which the application listens
 func (a *NetAddress) String() string {
-
 	if a.Port == 0 {
 		return DefaultServerAddress
 	}
@@ -109,7 +108,7 @@ func (a *NetAddress) Set(s string) error {
 }
 
 type jsonConfig struct {
-	ServerSddress   string `json:"server_sddress"`
+	ServerAddress   string `json:"server_address"`
 	BaseURL         string `json:"base_url"`
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDSN     string `json:"database_dsn"`
@@ -138,7 +137,7 @@ func parseJSONConfig(file string) (*jsonConfig, error) {
 
 func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 	if cfg.NetAddress.String() == "" {
-		cfg.NetAddress.Set(jsonCfg.ServerSddress)
+		cfg.NetAddress.Set(jsonCfg.ServerAddress)
 	}
 
 	if cfg.RedirectBasePath == "" {
