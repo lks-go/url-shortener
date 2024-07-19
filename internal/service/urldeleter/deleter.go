@@ -85,9 +85,11 @@ LOOP:
 		if send || sendAndExit {
 			send = false
 
-			if err := d.storage.DeleteURLs(context.Background(), listToDelete); err != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := d.storage.DeleteURLs(ctx, listToDelete); err != nil {
 				logrus.Errorf("filed to delete urls: %s", err)
 			}
+			cancel()
 
 			listToDelete = make([]string, 0, d.cfg.MaxBatchSize)
 		}
