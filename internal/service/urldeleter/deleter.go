@@ -42,7 +42,7 @@ func NewDeleter(cfg Config, d Deps) *URLDeleter {
 	return &URLDeleter{
 		cfg:     cfg,
 		storage: d.Storage,
-		queue:   make(chan string),
+		queue:   make(chan string, cfg.MaxBatchSize),
 	}
 }
 
