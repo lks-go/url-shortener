@@ -119,3 +119,11 @@ func (s *Storage) UsersURLCodes(ctx context.Context, userID string) ([]string, e
 func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error) {
 	return []service.UsersURL{}, nil
 }
+
+func (s *Storage) URLCount(ctx context.Context) (int, error) {
+	return 0, nil
+}
+
+func (s *Storage) UserCount(ctx context.Context) (int, error) {
+	return 0, nil
+}

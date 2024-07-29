@@ -17,13 +17,12 @@ import (
 )
 
 // Service это интерфейс сервиса отвечающего за обратоку входящих http запросов
-//
-//go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=Service
 type Service interface {
 	MakeBatchShortURL(ctx context.Context, userID string, urls []service.URL) ([]service.URL, error)
 	MakeShortURL(ctx context.Context, userID, url string) (string, error)
 	URL(ctx context.Context, id string) (string, error)
 	UsersURLs(ctx context.Context, userID string) ([]service.UsersURL, error)
+	Stats(ctx context.Context) (*service.StatsInfo, error)
 }
 
 // Deleter это интерфейс сервиса отвечающего за получение запроса на удаление
@@ -357,4 +356,36 @@ func (h *Handlers) Delete(w http.ResponseWriter, req *http.Request) {
 	}()
 
 	w.WriteHeader(http.StatusAccepted)
+}
+
+func (h *Handlers) Stats(w http.ResponseWriter, req *http.Request) {
+	statsInfo, err := h.service.Stats(req.Context())
+	if err != nil {
+		logrus.Errorf("failed to get stats in handler: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	resp := struct {
+		URLS  int `json:"urls"`
+		USERS int `json:"users"`
+	}{
+		URLS:  statsInfo.URLCount,
+		USERS: statsInfo.UserCount,
+	}
+
+	buf := new(bytes.Buffer)
+	if err := json.NewEncoder(buf).Encode(resp); err != nil {
+		logrus.Errorf("failed encode response to json: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Add("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(buf.Bytes())
+	if err != nil {
+		logrus.Errorf("failed to write response: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }

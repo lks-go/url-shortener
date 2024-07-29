@@ -21,8 +21,6 @@ type UsersURL struct {
 }
 
 // URLStorage is an interface of URL storage
-//
-//go:generate go run github.com/vektra/mockery/v2@v2.24.0 --name=URLStorage
 type URLStorage interface {
 	Save(ctx context.Context, code, url string) error
 	SaveBatch(ctx context.Context, url []URL) error
@@ -33,6 +31,8 @@ type URLStorage interface {
 	UsersURLCodes(ctx context.Context, userID string) ([]string, error)
 	DeleteURLs(ctx context.Context, codes []string) error
 	UsersURLs(ctx context.Context, userID string) ([]UsersURL, error)
+	URLCount(ctx context.Context) (int, error)
+	UserCount(ctx context.Context) (int, error)
 }
 
 // Config is a service config
@@ -136,6 +136,26 @@ func (s *Service) UsersURLs(ctx context.Context, userID string) ([]UsersURL, err
 	}
 
 	return userURLs, nil
+}
+
+type StatsInfo struct {
+	URLCount  int
+	UserCount int
+}
+
+// Stats gets user and URL count from DB
+func (s *Service) Stats(ctx context.Context) (*StatsInfo, error) {
+	urlCount, err := s.storage.URLCount(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get URL count: %w", err)
+	}
+
+	userCount, err := s.storage.UserCount(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user count: %w", err)
+	}
+
+	return &StatsInfo{URLCount: urlCount, UserCount: userCount}, nil
 }
 
 func (s *Service) generateShort(ctx context.Context) (string, error) {

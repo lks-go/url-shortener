@@ -187,3 +187,11 @@ func (s *Storage) append(fileName string, r *fs.Record) error {
 
 	return nil
 }
+
+func (s *Storage) URLCount(ctx context.Context) (int, error) {
+	return 0, nil
+}
+
+func (s *Storage) UserCount(ctx context.Context) (int, error) {
+	return 0, nil
+}

@@ -1,3 +1,8 @@
+export GOBIN := $(shell pwd)/bin
+
+tools:
+	go install github.com/vektra/mockery/v2@v2.43.2
+
 generate:
 	go generate ./...
 
