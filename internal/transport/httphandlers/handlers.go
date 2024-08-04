@@ -17,6 +17,7 @@ import (
 	"github.com/lks-go/url-shortener/internal/service"
 )
 
+// Config общий конфиг пакета
 type Config struct {
 	RedirectBasePath string
 	TrustedSubnet    string

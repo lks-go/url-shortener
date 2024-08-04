@@ -120,10 +120,12 @@ func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.Users
 	return []service.UsersURL{}, nil
 }
 
+// URLCount blank
 func (s *Storage) URLCount(ctx context.Context) (int, error) {
 	return 0, nil
 }
 
+// UserCount blank
 func (s *Storage) UserCount(ctx context.Context) (int, error) {
 	return 0, nil
 }

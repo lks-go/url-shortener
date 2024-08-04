@@ -83,8 +83,8 @@ func (a *App) Init() error {
 		middleware.WithCompressor,
 	)
 
-	if a.Config.HandlerConfig.TrustedSubnet == "" {
-		r.Use(middleware.WithRequestAborting)
+	if a.Config.ForbiddenAllHandlers {
+		r.Use(middleware.WithForbidden)
 	}
 
 	r.Get("/{id}", h.Redirect)

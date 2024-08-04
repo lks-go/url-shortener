@@ -138,6 +138,7 @@ func (s *Service) UsersURLs(ctx context.Context, userID string) ([]UsersURL, err
 	return userURLs, nil
 }
 
+// StatsInfo contains stats data about URLS and users count
 type StatsInfo struct {
 	URLCount  int
 	UserCount int

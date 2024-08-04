@@ -71,13 +71,15 @@ func NewConfig() (Config, error) {
 
 // Config contains application config
 type Config struct {
-	NetAddress      NetAddress
-	FileStoragePath string
-	DatabaseDSN     string
-	EnableHTTPS     bool
-	HandlerConfig   HandlerConfig
+	NetAddress           NetAddress
+	FileStoragePath      string
+	DatabaseDSN          string
+	EnableHTTPS          bool
+	HandlerConfig        HandlerConfig
+	ForbiddenAllHandlers bool
 }
 
+// HandlerConfig конфиг для хендлеров
 type HandlerConfig struct {
 	RedirectBasePath string
 	TrustedSubnet    string
@@ -169,5 +171,8 @@ func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 
 	if cfg.HandlerConfig.TrustedSubnet == "" {
 		cfg.HandlerConfig.TrustedSubnet = jsonCfg.TrustedSubnet
+		if jsonCfg.TrustedSubnet == "" {
+			cfg.ForbiddenAllHandlers = true
+		}
 	}
 }
