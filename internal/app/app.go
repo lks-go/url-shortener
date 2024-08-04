@@ -1,14 +1,17 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	chiMw "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
 
+	"github.com/lks-go/url-shortener/internal/lib/cert"
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/service/urldeleter"
@@ -20,26 +23,35 @@ import (
 	"github.com/lks-go/url-shortener/migrations"
 )
 
-// App is a struct of the application, contains all necessary dependencies
-type App struct {
-	Config Config
+// Service an common interface for app services
+type Service interface {
+	Start()
+	Stop()
 }
 
-var (
-	storage service.URLStorage
-	pool    *sql.DB
-)
+// App is a struct of the application, contains all necessary dependencies
+type App struct {
+	Config         Config
+	handler        http.Handler
+	serviceDeleter Service
 
-// Run builds and starts the application
-func (a *App) Run() error {
+	pool *sql.DB
+}
+
+// Init builds the application
+func (a *App) Init() error {
+	var (
+		storage service.URLStorage
+		pool    *sql.DB
+		err     error
+	)
 
 	switch {
 	case a.Config.DatabaseDSN != "":
-		pool, err := setupDB(a.Config.DatabaseDSN)
+		pool, err = setupDB(a.Config.DatabaseDSN)
 		if err != nil {
 			return fmt.Errorf("failed to setup database: %w", err)
 		}
-		defer pool.Close()
 
 		if err := migrations.RunUp(pool); err != nil {
 			return fmt.Errorf("failed to run migrations: %w", err)
@@ -58,10 +70,10 @@ func (a *App) Run() error {
 	})
 
 	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
-	d.Start()
-	defer d.Stop()
-
-	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s, Deleter: d})
+	h, err := httphandlers.New(httphandlers.Config(a.Config.HandlerConfig), httphandlers.Dependencies{Service: s, Deleter: d})
+	if err != nil {
+		return fmt.Errorf("failed to get new http handler: %w", err)
+	}
 
 	r := chi.NewRouter()
 	r.Use(
@@ -71,12 +83,18 @@ func (a *App) Run() error {
 		middleware.WithCompressor,
 	)
 
+	if a.Config.ForbiddenAllHandlers {
+		r.Use(middleware.WithForbidden)
+	}
+
 	r.Get("/{id}", h.Redirect)
 	r.Post("/", h.ShortURL)
 	r.Post("/api/shorten", h.ShortenURL)
 	r.Post("/api/shorten/batch", h.ShortenBatchURL)
 	r.Get("/api/user/urls", h.UsersURLs)
 	r.Delete("/api/user/urls", h.Delete)
+	r.Get("/api/internal/stats", h.Stats)
+
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		if err := pool.Ping(); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -86,7 +104,80 @@ func (a *App) Run() error {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	return http.ListenAndServe(a.Config.NetAddress.String(), r)
+	a.pool = pool
+	a.handler = r
+	a.serviceDeleter = d
+
+	return nil
+}
+
+// StartHTTPServer starts the HTTP server
+func (a *App) StartHTTPServer(ctx context.Context) error {
+	idleConnsClosed := make(chan struct{})
+
+	srv := http.Server{
+		Addr:    a.Config.NetAddress.String(),
+		Handler: a.handler,
+	}
+
+	go func() {
+		<-ctx.Done()
+		if err := srv.Shutdown(context.Background()); err != nil {
+			log.Printf("failed to shutdown server: %s\n", err)
+		}
+
+		close(idleConnsClosed)
+	}()
+
+	if a.Config.EnableHTTPS {
+		certFile := "cert.pem"
+		keyFile := "key.pem"
+
+		err := cert.New(cert.Config{
+			CertFileName: certFile,
+			KeyFileName:  keyFile,
+			Organization: []string{"Yandex.Praktikum"},
+			Country:      []string{"RU"},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to get new cert: %w", err)
+		}
+
+		if err := srv.ListenAndServeTLS(certFile, keyFile); err != nil {
+			return fmt.Errorf("filed to listern and serve TLS: %w", err)
+		}
+
+		<-idleConnsClosed
+
+		return nil
+	}
+
+	if err := srv.ListenAndServe(); err != nil {
+		return fmt.Errorf("filed to listern and serve: %w", err)
+	}
+
+	<-idleConnsClosed
+
+	return nil
+}
+
+// StartDeleter starts deleter service
+func (a *App) StartDeleter(ctx context.Context) error {
+	go func() {
+		<-ctx.Done()
+		a.serviceDeleter.Stop()
+	}()
+
+	a.serviceDeleter.Start()
+
+	return nil
+}
+
+// Exit finishes the app by closing inited db connections and etc
+func (a *App) Exit() {
+	if err := a.pool.Close(); err != nil {
+		log.Printf("failed to close pool: %s", err)
+	}
 }
 
 func setupDB(dsn string) (*sql.DB, error) {

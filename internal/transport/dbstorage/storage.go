@@ -214,3 +214,27 @@ func (s *Storage) UsersURLs(ctx context.Context, userID string) ([]service.Users
 
 	return urls, nil
 }
+
+// URLCount returns count of URLs which field delete is null or is not equal true
+func (s *Storage) URLCount(ctx context.Context) (int, error) {
+	q := `SELECT count(*) FROM shorten WHERE deleted != true OR deleted IS NULL`
+
+	cnt := 0
+	if err := s.db.QueryRowContext(ctx, q).Scan(&cnt); err != nil {
+		return 0, err
+	}
+
+	return cnt, nil
+}
+
+// UserCount returns count of users by getting unique user from table user_codes
+func (s *Storage) UserCount(ctx context.Context) (int, error) {
+	q := `SELECT count(DISTINCT user_id) FROM user_codes`
+
+	cnt := 0
+	if err := s.db.QueryRowContext(ctx, q).Scan(&cnt); err != nil {
+		return 0, err
+	}
+
+	return cnt, nil
+}

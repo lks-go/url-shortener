@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -24,7 +25,8 @@ func TestHandlers_Redirect(t *testing.T) {
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New("/", deps)
+	h, err := httphandlers.New(httphandlers.Config{RedirectBasePath: "/"}, deps)
+	assert.NoError(t, err)
 
 	type header struct {
 		key, value string
@@ -116,7 +118,8 @@ func TestHandlers_ShortURL(t *testing.T) {
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New(basePath, deps)
+	h, err := httphandlers.New(httphandlers.Config{RedirectBasePath: basePath}, deps)
+	assert.NoError(t, err)
 
 	tests := []struct {
 		name         string
@@ -185,7 +188,8 @@ func TestHandlers_ShortenURL(t *testing.T) {
 	deps := httphandlers.Dependencies{
 		Service: serviceMock,
 	}
-	h := httphandlers.New(basePath, deps)
+	h, err := httphandlers.New(httphandlers.Config{RedirectBasePath: basePath}, deps)
+	assert.NoError(t, err)
 
 	tests := []struct {
 		name         string
@@ -243,4 +247,91 @@ func TestHandlers_ShortenURL(t *testing.T) {
 			assert.Equal(t, tt.wantHTTPCode, w.Code)
 		})
 	}
+}
+
+func TestHandlers_Stats(t *testing.T) {
+	basePath := "http://localhost:8080"
+	serviceMock := mocks.NewService(t)
+
+	deps := httphandlers.Dependencies{
+		Service: serviceMock,
+	}
+
+	cfg := httphandlers.Config{RedirectBasePath: basePath, TrustedSubnet: "248.133.71.0/24"}
+	h, err := httphandlers.New(cfg, deps)
+	assert.NoError(t, err)
+
+	expectedRespBody := `{"urls": 23,"users": 10}`
+	tests := []struct {
+		name         string
+		ip           string
+		wantHTTPCode int
+		wantResp     string
+		callMocks    func()
+	}{
+		{
+			name:         "successful request",
+			ip:           "248.133.71.33",
+			wantHTTPCode: http.StatusOK,
+			wantResp:     expectedRespBody,
+			callMocks: func() {
+				serviceMock.On("Stats", mock.Anything).
+					Return(&service.StatsInfo{URLCount: 23, UserCount: 10}, nil).Once()
+			},
+		},
+		{
+			name:         "internal error",
+			ip:           "248.133.71.33",
+			wantHTTPCode: http.StatusInternalServerError,
+			wantResp:     "",
+			callMocks: func() {
+				serviceMock.On("Stats", mock.Anything).
+					Return(nil, errors.New("any error")).Once()
+			},
+		},
+		{
+			name:         "forbidden",
+			ip:           "248.133.72.1",
+			wantHTTPCode: http.StatusForbidden,
+			wantResp:     "",
+			callMocks:    func() {},
+		},
+		{
+			name:         "forbidden",
+			ip:           "248.134.71.5",
+			wantHTTPCode: http.StatusForbidden,
+			wantResp:     "",
+			callMocks:    func() {},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.callMocks()
+
+			w := httptest.NewRecorder()
+			r := httptest.NewRequest(http.MethodGet, "/", nil)
+			r.Header.Add("X-Real-IP", tt.ip)
+
+			hh := middleware.WithAuth(http.HandlerFunc(h.Stats))
+			hh.ServeHTTP(w, r)
+
+			if tt.wantResp != "" {
+				assert.JSONEq(t, tt.wantResp, w.Body.String())
+			}
+			assert.Equal(t, tt.wantHTTPCode, w.Code)
+		})
+	}
+
+}
+
+func TestHandlers_StatsTrustedSubnet(t *testing.T) {
+
+	ip := net.ParseIP("248.133.72.1")
+
+	_, ipNet, err := net.ParseCIDR("248.133.71.0/24")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Log(ipNet.Contains(ip))
 }
