@@ -37,10 +37,10 @@ func main() {
 
 	log.Println("Starting server")
 	log.Printf("Listen and serve on %s", a.Config.NetAddress.String())
-	log.Printf("Base path for short URL '%s'", a.Config.RedirectBasePath)
+	log.Printf("Base path for short URL '%s'", a.Config.HandlerConfig.RedirectBasePath)
 
 	go func() {
-		err := http.ListenAndServe(":8082", nil)
+		err := http.ListenAndServe(":8083", nil)
 		log.Fatalf("failed to run profiler http server: %s", err)
 	}()
 

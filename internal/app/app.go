@@ -70,7 +70,10 @@ func (a *App) Init() error {
 	})
 
 	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
-	h := httphandlers.New(a.Config.RedirectBasePath, httphandlers.Dependencies{Service: s, Deleter: d})
+	h, err := httphandlers.New(httphandlers.Config(a.Config.HandlerConfig), httphandlers.Dependencies{Service: s, Deleter: d})
+	if err != nil {
+		return fmt.Errorf("failed to get new http handler: %w", err)
+	}
 
 	r := chi.NewRouter()
 	r.Use(

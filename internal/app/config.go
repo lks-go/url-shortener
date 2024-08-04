@@ -22,10 +22,11 @@ const (
 func NewConfig() (Config, error) {
 	cfg := Config{}
 	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
-	flag.StringVar(&cfg.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
+	flag.StringVar(&cfg.HandlerConfig.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
+	flag.StringVar(&cfg.HandlerConfig.TrustedSubnet, "t", "", "Trusted subnet")
 
 	var configFile string
 	flag.StringVar(&configFile, "c", "", "Config json file path")
@@ -33,7 +34,7 @@ func NewConfig() (Config, error) {
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
-		cfg.RedirectBasePath = baseURL
+		cfg.HandlerConfig.RedirectBasePath = baseURL
 	}
 
 	if srvAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
@@ -52,6 +53,10 @@ func NewConfig() (Config, error) {
 		cfg.EnableHTTPS = enableHTTPS == "true" || enableHTTPS == "1"
 	}
 
+	if trustedSubnet, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
+		cfg.HandlerConfig.TrustedSubnet = trustedSubnet
+	}
+
 	if configFile != "" {
 		jsonCfg, err := parseJSONConfig(configFile)
 		if err != nil {
@@ -66,11 +71,16 @@ func NewConfig() (Config, error) {
 
 // Config contains application config
 type Config struct {
-	NetAddress       NetAddress
+	NetAddress      NetAddress
+	FileStoragePath string
+	DatabaseDSN     string
+	EnableHTTPS     bool
+	HandlerConfig   HandlerConfig
+}
+
+type HandlerConfig struct {
 	RedirectBasePath string
-	FileStoragePath  string
-	DatabaseDSN      string
-	EnableHTTPS      bool
+	TrustedSubnet    string
 }
 
 // NetAddress contains net config
@@ -113,6 +123,7 @@ type jsonConfig struct {
 	FileStoragePath string `json:"file_storage_path"`
 	DatabaseDSN     string `json:"database_dsn"`
 	EnableHTTPS     bool   `json:"enable_https"`
+	TrustedSubnet   string `json:"trusted_subnet"`
 }
 
 func parseJSONConfig(file string) (*jsonConfig, error) {
@@ -140,8 +151,8 @@ func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 		cfg.NetAddress.Set(jsonCfg.ServerAddress)
 	}
 
-	if cfg.RedirectBasePath == "" {
-		cfg.RedirectBasePath = jsonCfg.BaseURL
+	if cfg.HandlerConfig.RedirectBasePath == "" {
+		cfg.HandlerConfig.RedirectBasePath = jsonCfg.BaseURL
 	}
 
 	if cfg.FileStoragePath == "" {
@@ -154,5 +165,9 @@ func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 
 	if !cfg.EnableHTTPS {
 		cfg.EnableHTTPS = jsonCfg.EnableHTTPS
+	}
+
+	if cfg.HandlerConfig.TrustedSubnet == "" {
+		cfg.HandlerConfig.TrustedSubnet = jsonCfg.TrustedSubnet
 	}
 }
