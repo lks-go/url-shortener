@@ -80,6 +80,15 @@ func WithAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(fn)
 }
 
+func WithRequestAborting(next http.Handler) http.Handler {
+	fn := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		return
+	}
+
+	return http.HandlerFunc(fn)
+}
+
 // Claims embeds jwt.RegisteredClaims
 type Claims struct {
 	jwt.RegisteredClaims

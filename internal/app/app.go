@@ -83,6 +83,10 @@ func (a *App) Init() error {
 		middleware.WithCompressor,
 	)
 
+	if a.Config.HandlerConfig.TrustedSubnet == "" {
+		r.Use(middleware.WithRequestAborting)
+	}
+
 	r.Get("/{id}", h.Redirect)
 	r.Post("/", h.ShortURL)
 	r.Post("/api/shorten", h.ShortenURL)
