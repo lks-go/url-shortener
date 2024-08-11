@@ -2,18 +2,14 @@ package middleware
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
 
-	"github.com/golang-jwt/jwt/v4"
 	"github.com/google/uuid"
-)
 
-const (
-	cookieName    = "auth_token"
-	cookieExpires = time.Hour * 24 * 30
+	"github.com/lks-go/url-shortener/internal/entity"
+	"github.com/lks-go/url-shortener/internal/lib/jwt"
 )
 
 // WithAuth checks user's cookie and jwt
@@ -22,9 +18,9 @@ func WithAuth(next http.Handler) http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		var userID string
 		var emptyCookie bool
-		var claims *Claims
+		var claims *jwt.Claims
 
-		cookie, err := r.Cookie(cookieName)
+		cookie, err := r.Cookie(entity.AuthTokenHeader)
 		if err != nil {
 			switch {
 			case errors.Is(err, http.ErrNoCookie):
@@ -38,8 +34,8 @@ func WithAuth(next http.Handler) http.Handler {
 		}
 
 		if !emptyCookie {
-			claims, err = ParseJWTToken(cookie.Value)
-			if err != nil && !errors.Is(err, ErrInvalidToken) && !errors.Is(err, ErrTokenExpired) {
+			claims, err = jwt.ParseJWTToken(cookie.Value)
+			if err != nil && !errors.Is(err, jwt.ErrInvalidToken) && !errors.Is(err, jwt.ErrTokenExpired) {
 				log.Println("failed to parse jwt:", err)
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
@@ -56,85 +52,26 @@ func WithAuth(next http.Handler) http.Handler {
 			}
 		}
 
-		if emptyCookie || errors.Is(err, ErrInvalidToken) || errors.Is(err, ErrTokenExpired) {
+		if emptyCookie || errors.Is(err, jwt.ErrInvalidToken) || errors.Is(err, jwt.ErrTokenExpired) {
 			userID = uuid.NewString()
-			token, err := BuildNewJWTToken(userID)
+			token, err := jwt.BuildNewJWTToken(userID)
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)
 				w.Write([]byte(http.StatusText(http.StatusInternalServerError)))
 			}
 
 			newCookie := http.Cookie{
-				Name:    cookieName,
+				Name:    entity.AuthTokenHeader,
 				Value:   token,
-				Expires: time.Now().Add(cookieExpires),
+				Expires: time.Now().Add(entity.CookieExpires),
 			}
 
 			http.SetCookie(w, &newCookie)
 		}
 
-		r.Header.Set("User-Id", userID)
+		r.Header.Set(entity.UserIDHeaderName, userID)
 		next.ServeHTTP(w, r)
 	}
 
 	return http.HandlerFunc(fn)
-}
-
-// Claims embeds jwt.RegisteredClaims
-type Claims struct {
-	jwt.RegisteredClaims
-	UserID string
-}
-
-const (
-	tokenExp  = time.Hour * 60
-	secretKey = "secret"
-)
-
-// BuildNewJWTToken builds new jwt to userID
-func BuildNewJWTToken(userID string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(tokenExp)),
-		},
-		UserID: userID,
-	})
-
-	tokenString, err := token.SignedString([]byte(secretKey))
-	if err != nil {
-		return "", fmt.Errorf("failed to get signed string: %w", err)
-	}
-
-	return tokenString, nil
-}
-
-// Token errors
-var (
-	ErrInvalidToken = errors.New("invalid token")
-	ErrTokenExpired = errors.New("token expired")
-)
-
-// ParseJWTToken validates jwt
-func ParseJWTToken(token string) (*Claims, error) {
-	claims := Claims{}
-	parsedToken, err := jwt.ParseWithClaims(token, &claims, func(t *jwt.Token) (interface{}, error) {
-		if t.Method != jwt.SigningMethodHS256 {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-
-		return []byte(secretKey), nil
-	})
-	if err != nil && !errors.Is(err, jwt.ErrTokenExpired) {
-		return nil, fmt.Errorf("failed to parse jwt: %w", err)
-	}
-
-	if errors.Is(err, jwt.ErrTokenExpired) {
-		return nil, ErrTokenExpired
-	}
-
-	if !parsedToken.Valid {
-		return nil, ErrInvalidToken
-	}
-
-	return &claims, nil
 }

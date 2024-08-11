@@ -21,12 +21,17 @@ const (
 // NewConfig builds and returns application config
 func NewConfig() (Config, error) {
 	cfg := Config{}
-	flag.Var(&cfg.NetAddress, "a", "Net address host:port")
-	flag.StringVar(&cfg.HandlerConfig.RedirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
+	var redirectBasePath string
+
+	flag.Var(&cfg.NetAddress, "a", "HTTP net address host:port")
+	flag.Var(&cfg.GRPCNetAddress, "ga", "GRPC net address host:port")
+	flag.StringVar(&redirectBasePath, "b", DefaultBaseURL, "Base path for short URL")
 	flag.StringVar(&cfg.FileStoragePath, "f", DefaultFSPath, "Path for file storage")
 	flag.StringVar(&cfg.DatabaseDSN, "d", "", "Database connection string")
 	flag.BoolVar(&cfg.EnableHTTPS, "s", false, "Enable HTTPS")
-	flag.StringVar(&cfg.HandlerConfig.TrustedSubnet, "t", "", "Trusted subnet")
+	flag.StringVar(&cfg.HTTPHandlerConfig.TrustedSubnet, "t", "", "Trusted subnet")
+
+	cfg.HTTPHandlerConfig.RedirectBasePath, cfg.GRPCHandlerConfig.RedirectBasePath = redirectBasePath, redirectBasePath
 
 	var configFile string
 	flag.StringVar(&configFile, "c", "", "Config json file path")
@@ -34,11 +39,16 @@ func NewConfig() (Config, error) {
 	flag.Parse()
 
 	if baseURL, ok := os.LookupEnv("BASE_URL"); ok {
-		cfg.HandlerConfig.RedirectBasePath = baseURL
+		cfg.HTTPHandlerConfig.RedirectBasePath = baseURL
+		cfg.GRPCHandlerConfig.RedirectBasePath = baseURL
 	}
 
 	if srvAddr, ok := os.LookupEnv("SERVER_ADDRESS"); ok {
 		cfg.NetAddress.Set(srvAddr)
+	}
+
+	if srvAddr, ok := os.LookupEnv("GRPC_SERVER_ADDRESS"); ok {
+		cfg.GRPCNetAddress.Set(srvAddr)
 	}
 
 	if fsPath, ok := os.LookupEnv("FILE_STORAGE_PATH"); ok {
@@ -54,7 +64,7 @@ func NewConfig() (Config, error) {
 	}
 
 	if trustedSubnet, ok := os.LookupEnv("TRUSTED_SUBNET"); ok {
-		cfg.HandlerConfig.TrustedSubnet = trustedSubnet
+		cfg.HTTPHandlerConfig.TrustedSubnet = trustedSubnet
 	}
 
 	if configFile != "" {
@@ -72,15 +82,23 @@ func NewConfig() (Config, error) {
 // Config contains application config
 type Config struct {
 	NetAddress           NetAddress
+	GRPCNetAddress       NetAddress
 	FileStoragePath      string
 	DatabaseDSN          string
 	EnableHTTPS          bool
-	HandlerConfig        HandlerConfig
+	HTTPHandlerConfig    HTTPHandlerConfig
+	GRPCHandlerConfig    GRPCHandlerConfig
 	ForbiddenAllHandlers bool
 }
 
-// HandlerConfig конфиг для хендлеров
-type HandlerConfig struct {
+// HTTPHandlerConfig конфиг для HTTP хендлеров
+type HTTPHandlerConfig struct {
+	RedirectBasePath string
+	TrustedSubnet    string
+}
+
+// GRPCHandlerConfig конфиг для GRPC хендлеров
+type GRPCHandlerConfig struct {
 	RedirectBasePath string
 	TrustedSubnet    string
 }
@@ -120,12 +138,13 @@ func (a *NetAddress) Set(s string) error {
 }
 
 type jsonConfig struct {
-	ServerAddress   string `json:"server_address"`
-	BaseURL         string `json:"base_url"`
-	FileStoragePath string `json:"file_storage_path"`
-	DatabaseDSN     string `json:"database_dsn"`
-	EnableHTTPS     bool   `json:"enable_https"`
-	TrustedSubnet   string `json:"trusted_subnet"`
+	ServerAddress     string `json:"server_address"`
+	GRPCServerAddress string `json:"grpc_server_address"`
+	BaseURL           string `json:"base_url"`
+	FileStoragePath   string `json:"file_storage_path"`
+	DatabaseDSN       string `json:"database_dsn"`
+	EnableHTTPS       bool   `json:"enable_https"`
+	TrustedSubnet     string `json:"trusted_subnet"`
 }
 
 func parseJSONConfig(file string) (*jsonConfig, error) {
@@ -153,8 +172,13 @@ func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 		cfg.NetAddress.Set(jsonCfg.ServerAddress)
 	}
 
-	if cfg.HandlerConfig.RedirectBasePath == "" {
-		cfg.HandlerConfig.RedirectBasePath = jsonCfg.BaseURL
+	if cfg.GRPCNetAddress.String() == "" {
+		cfg.GRPCNetAddress.Set(jsonCfg.GRPCServerAddress)
+	}
+
+	if cfg.HTTPHandlerConfig.RedirectBasePath == "" {
+		cfg.HTTPHandlerConfig.RedirectBasePath = jsonCfg.BaseURL
+		cfg.GRPCHandlerConfig.RedirectBasePath = jsonCfg.BaseURL
 	}
 
 	if cfg.FileStoragePath == "" {
@@ -169,8 +193,8 @@ func mapJSONConfig(cfg *Config, jsonCfg *jsonConfig) {
 		cfg.EnableHTTPS = jsonCfg.EnableHTTPS
 	}
 
-	if cfg.HandlerConfig.TrustedSubnet == "" {
-		cfg.HandlerConfig.TrustedSubnet = jsonCfg.TrustedSubnet
+	if cfg.HTTPHandlerConfig.TrustedSubnet == "" {
+		cfg.HTTPHandlerConfig.TrustedSubnet = jsonCfg.TrustedSubnet
 		if jsonCfg.TrustedSubnet == "" {
 			cfg.ForbiddenAllHandlers = true
 		}

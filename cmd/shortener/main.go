@@ -36,15 +36,16 @@ func main() {
 	}
 
 	log.Println("Starting server")
-	log.Printf("Listen and serve on %s", a.Config.NetAddress.String())
-	log.Printf("Base path for short URL '%s'", a.Config.HandlerConfig.RedirectBasePath)
+	log.Printf("Listen and serve HTTP requests on %s", a.Config.NetAddress.String())
+	log.Printf("Listen and serve GRPC requests on %s", a.Config.GRPCNetAddress.String())
+	log.Printf("Base path for short URL '%s'", a.Config.HTTPHandlerConfig.RedirectBasePath)
 
 	go func() {
 		err := http.ListenAndServe(":8083", nil)
 		log.Fatalf("failed to run profiler http server: %s", err)
 	}()
 
-	if err := a.Init(); err != nil {
+	if err := a.Build(); err != nil {
 		log.Fatalf("failed to init application: %s", err)
 	}
 
@@ -56,6 +57,14 @@ func main() {
 	g.Go(func() error {
 		if err := a.StartHTTPServer(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			return fmt.Errorf("HTTP server error: %w", err)
+		}
+
+		return nil
+	})
+
+	g.Go(func() error {
+		if err := a.StartGRPCServer(ctx); err != nil {
+			return fmt.Errorf("GRPC server error: %w", err)
 		}
 
 		return nil

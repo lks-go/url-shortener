@@ -27,3 +27,5 @@ bin
 cert.pem
 key.pem
 config.json
+
+.DS_Store

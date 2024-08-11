@@ -5,25 +5,30 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	chiMw "github.com/go-chi/chi/v5/middleware"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"google.golang.org/grpc"
 
 	"github.com/lks-go/url-shortener/internal/lib/cert"
 	"github.com/lks-go/url-shortener/internal/lib/random"
 	"github.com/lks-go/url-shortener/internal/service"
 	"github.com/lks-go/url-shortener/internal/service/urldeleter"
 	"github.com/lks-go/url-shortener/internal/transport/dbstorage"
+	"github.com/lks-go/url-shortener/internal/transport/grpchandler"
 	"github.com/lks-go/url-shortener/internal/transport/httphandlers"
 	"github.com/lks-go/url-shortener/internal/transport/infilestorage"
 	"github.com/lks-go/url-shortener/internal/transport/inmemstorage"
+	"github.com/lks-go/url-shortener/internal/transport/interceptor"
 	"github.com/lks-go/url-shortener/internal/transport/middleware"
 	"github.com/lks-go/url-shortener/migrations"
+	"github.com/lks-go/url-shortener/pkg/proto"
 )
 
-// Service an common interface for app services
+// Service a common interface for app services
 type Service interface {
 	Start()
 	Stop()
@@ -34,12 +39,13 @@ type App struct {
 	Config         Config
 	handler        http.Handler
 	serviceDeleter Service
+	grpcHandler    proto.URLShortenerServer
 
 	pool *sql.DB
 }
 
-// Init builds the application
-func (a *App) Init() error {
+// Build builds the application
+func (a *App) Build() error {
 	var (
 		storage service.URLStorage
 		pool    *sql.DB
@@ -70,7 +76,7 @@ func (a *App) Init() error {
 	})
 
 	d := urldeleter.NewDeleter(urldeleter.Config{}, urldeleter.Deps{Storage: storage})
-	h, err := httphandlers.New(httphandlers.Config(a.Config.HandlerConfig), httphandlers.Dependencies{Service: s, Deleter: d})
+	httpHandlers, err := httphandlers.New(httphandlers.Config(a.Config.HTTPHandlerConfig), httphandlers.Dependencies{Service: s, Deleter: d})
 	if err != nil {
 		return fmt.Errorf("failed to get new http handler: %w", err)
 	}
@@ -87,13 +93,13 @@ func (a *App) Init() error {
 		r.Use(middleware.WithForbidden)
 	}
 
-	r.Get("/{id}", h.Redirect)
-	r.Post("/", h.ShortURL)
-	r.Post("/api/shorten", h.ShortenURL)
-	r.Post("/api/shorten/batch", h.ShortenBatchURL)
-	r.Get("/api/user/urls", h.UsersURLs)
-	r.Delete("/api/user/urls", h.Delete)
-	r.Get("/api/internal/stats", h.Stats)
+	r.Post("/", httpHandlers.ShortURL)
+	r.Get("/{id}", httpHandlers.Redirect)
+	r.Post("/api/shorten", httpHandlers.ShortenURL)
+	r.Post("/api/shorten/batch", httpHandlers.ShortenBatchURL)
+	r.Get("/api/user/urls", httpHandlers.UsersURLs)
+	r.Delete("/api/user/urls", httpHandlers.Delete)
+	r.Get("/api/internal/stats", httpHandlers.Stats)
 
 	r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 		if err := pool.Ping(); err != nil {
@@ -104,6 +110,12 @@ func (a *App) Init() error {
 		w.WriteHeader(http.StatusOK)
 	})
 
+	grpcHandler, err := grpchandler.New(grpchandler.Config(a.Config.GRPCHandlerConfig), &grpchandler.Deps{Service: s, Deleter: d})
+	if err != nil {
+		return fmt.Errorf("failed to get new grpc handler: %w", err)
+	}
+
+	a.grpcHandler = grpcHandler
 	a.pool = pool
 	a.handler = r
 	a.serviceDeleter = d
@@ -169,6 +181,27 @@ func (a *App) StartDeleter(ctx context.Context) error {
 	}()
 
 	a.serviceDeleter.Start()
+
+	return nil
+}
+
+func (a *App) StartGRPCServer(ctx context.Context) error {
+	listen, err := net.Listen("tcp", a.Config.GRPCNetAddress.String())
+	if err != nil {
+		return fmt.Errorf("filed to start listen address %s: %w", a.Config.GRPCNetAddress.String(), err)
+	}
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.Auth))
+	proto.RegisterURLShortenerServer(s, a.grpcHandler)
+
+	go func() {
+		<-ctx.Done()
+		listen.Close()
+	}()
+
+	if err := s.Serve(listen); err != nil {
+		return fmt.Errorf("filed to start serving: %w", err)
+	}
 
 	return nil
 }
